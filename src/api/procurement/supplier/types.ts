@@ -2,6 +2,8 @@ export interface SupplierVO extends BaseEntity {
   id: number | string;
   supplierCode: string;
   supplierName: string;
+  platform: string;
+  link: string;
   contactName: string;
   contactPhone: string;
   address: string;
@@ -15,6 +17,8 @@ export interface SupplierForm {
   id: number | string | undefined;
   supplierCode: string;
   supplierName: string;
+  platform: string;
+  link: string;
   contactName: string;
   contactPhone: string;
   address: string;

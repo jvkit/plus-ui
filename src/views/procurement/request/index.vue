@@ -32,10 +32,13 @@
               </el-select>
             </el-form-item>
             <el-form-item label="采购类型" prop="purchaseType">
-              <el-select v-model="queryParams.purchaseType" placeholder="采购类型" clearable style="width: 120px">
-                <el-option label="物资" value="goods" />
+              <el-select v-model="queryParams.purchaseType" placeholder="采购类型" clearable style="width: 140px">
+                <el-option label="设备" value="equipment" />
+                <el-option label="材料" value="material" />
                 <el-option label="服务" value="service" />
-                <el-option label="固定资产" value="fixed_asset" />
+                <el-option label="工程" value="engineering" />
+                <el-option label="危化品" value="dangerous" />
+                <el-option label="其他" value="other" />
               </el-select>
             </el-form-item>
             <el-form-item>
@@ -141,9 +144,12 @@
           <el-col :span="12">
             <el-form-item label="采购类型" prop="purchaseType">
               <el-select v-model="form.purchaseType" placeholder="请选择采购类型" clearable style="width: 100%">
-                <el-option label="物资" value="goods" />
+                <el-option label="设备" value="equipment" />
+                <el-option label="材料" value="material" />
                 <el-option label="服务" value="service" />
-                <el-option label="固定资产" value="fixed_asset" />
+                <el-option label="工程" value="engineering" />
+                <el-option label="危化品" value="dangerous" />
+                <el-option label="其他" value="other" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -160,58 +166,125 @@
         <template #header>
           <div class="card-header">
             <span>采购明细</span>
-            <el-button v-hasPermi="['procurement:request:add']" type="primary" link icon="Plus" @click="addItemRow">添加明细</el-button>
+            <el-button v-hasPermi="['procurement:request:add']" type="primary" link icon="Plus" @click="openItemDialog()">添加明细</el-button>
           </div>
         </template>
         <el-table :data="form.items" border size="small">
-          <el-table-column label="品名" align="center" min-width="140">
-            <template #default="{ $index }">
-              <el-input v-model="form.items[$index].itemName" placeholder="品名" />
-            </template>
+          <el-table-column label="采购种类" align="center" prop="purchaseType" width="90" />
+          <el-table-column label="品名" align="center" prop="itemName" min-width="130" :show-overflow-tooltip="true" />
+          <el-table-column label="规格" align="center" prop="spec" min-width="90" :show-overflow-tooltip="true" />
+          <el-table-column label="单位" align="center" prop="unit" width="70" />
+          <el-table-column label="数量" align="center" prop="quantity" width="80" />
+          <el-table-column label="单价" align="center" prop="unitPrice" width="90" />
+          <el-table-column label="金额" align="center" width="100">
+            <template #default="scope"><span>{{ (scope.row.amount || 0).toFixed(2) }}</span></template>
           </el-table-column>
-          <el-table-column label="规格" align="center" min-width="120">
-            <template #default="{ $index }">
-              <el-input v-model="form.items[$index].spec" placeholder="规格" />
-            </template>
+          <el-table-column label="平台" align="center" prop="platform" width="80" />
+          <el-table-column label="供应商" align="center" min-width="110" :show-overflow-tooltip="true">
+            <template #default="scope">{{ supplierNameOf(scope.row.supplierId) }}</template>
           </el-table-column>
-          <el-table-column label="品牌" align="center" min-width="100">
-            <template #default="{ $index }">
-              <el-input v-model="form.items[$index].brand" placeholder="品牌" />
-            </template>
-          </el-table-column>
-          <el-table-column label="单位" align="center" width="80">
-            <template #default="{ $index }">
-              <el-input v-model="form.items[$index].unit" placeholder="单位" />
-            </template>
-          </el-table-column>
-          <el-table-column label="数量" align="center" width="110">
-            <template #default="{ $index }">
-              <el-input-number v-model="form.items[$index].quantity" :min="0" :precision="4" :controls="false" style="width: 100%" @change="calcItem($index)" />
-            </template>
-          </el-table-column>
-          <el-table-column label="单价" align="center" width="110">
-            <template #default="{ $index }">
-              <el-input-number v-model="form.items[$index].unitPrice" :min="0" :precision="4" :controls="false" style="width: 100%" @change="calcItem($index)" />
-            </template>
-          </el-table-column>
-          <el-table-column label="金额" align="center" width="110">
-            <template #default="{ $index }">
-              <span>{{ (form.items[$index].amount || 0).toFixed(2) }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="备注" align="center" min-width="100">
-            <template #default="{ $index }">
-              <el-input v-model="form.items[$index].remark" placeholder="备注" />
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" align="center" width="80">
-            <template #default="{ $index }">
-              <el-button link type="danger" icon="Delete" @click="removeItemRow($index)"></el-button>
+          <el-table-column label="操作" align="center" width="100">
+            <template #default="scope">
+              <el-button link type="primary" icon="Edit" @click="openItemDialog(scope.$index)"></el-button>
+              <el-button link type="danger" icon="Delete" @click="removeItemRow(scope.$index)"></el-button>
             </template>
           </el-table-column>
         </el-table>
         <div class="mt-2 text-right font-bold">合计：{{ totalAmount.toFixed(2) }} 元</div>
       </el-card>
+
+      <!-- 明细编辑弹窗 -->
+      <el-dialog v-model="itemDialog.visible" :title="itemDialog.title" width="680px" append-to-body>
+        <el-form ref="itemFormRef" :model="itemForm" label-width="100px">
+          <el-row>
+            <el-col :span="12">
+              <el-form-item label="采购种类" prop="purchaseType">
+                <el-select v-model="itemForm.purchaseType" style="width: 100%">
+                  <el-option label="科研类" value="科研类" />
+                  <el-option label="非科研类" value="非科研类" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="一级分类" prop="category1">
+                <el-input v-model="itemForm.category1" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row>
+            <el-col :span="12">
+              <el-form-item label="二级分类" prop="category2">
+                <el-input v-model="itemForm.category2" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="项目归属" prop="projectBelong">
+                <el-input v-model="itemForm.projectBelong" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row>
+            <el-col :span="12">
+              <el-form-item label="品名" prop="itemName">
+                <el-input v-model="itemForm.itemName" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="单位" prop="unit">
+                <el-select v-model="itemForm.unit" allow-create filterable placeholder="选择或输入单位" style="width: 100%">
+                  <el-option v-for="u in unitOptions" :key="u" :label="u" :value="u" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row>
+            <el-col :span="12">
+              <el-form-item label="数量" prop="quantity">
+                <el-input-number v-model="itemForm.quantity" :min="0" :precision="4" :controls="false" style="width: 100%" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="单价" prop="unitPrice">
+                <el-input-number v-model="itemForm.unitPrice" :min="0" :precision="4" :controls="false" style="width: 100%" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row>
+            <el-col :span="12">
+              <el-form-item label="规格" prop="spec"><el-input v-model="itemForm.spec" /></el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="品牌" prop="brand"><el-input v-model="itemForm.brand" /></el-form-item>
+            </el-col>
+          </el-row>
+          <!-- 自动识别相关放靠后 -->
+          <el-form-item label="链接" prop="link">
+            <el-input v-model="itemForm.link" placeholder="商品链接/标题" @blur="onItemLinkBlur" />
+          </el-form-item>
+          <el-row>
+            <el-col :span="12">
+              <el-form-item label="平台" prop="platform">
+                <el-input v-model="itemForm.platform" placeholder="自动识别" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="供应商" prop="supplierId">
+                <el-select v-model="itemForm.supplierId" clearable filterable placeholder="选供应商(可选)" style="width: 100%">
+                  <el-option v-for="s in filterSuppliers(itemForm.platform)" :key="s.id" :label="s.supplierName" :value="s.id" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-form-item label="备注" prop="remark">
+            <el-input v-model="itemForm.remark" type="textarea" />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="itemDialog.visible = false">取 消</el-button>
+          <el-button type="primary" plain @click="confirmItem(true)">再添加一个</el-button>
+          <el-button type="primary" @click="confirmItem(false)">确 定</el-button>
+        </template>
+      </el-dialog>
 
       <template #footer>
         <div class="dialog-footer">
@@ -270,15 +343,22 @@ const dialog = reactive<DialogOption>({
 const emptyItem = (): RequestItemForm => ({
   id: undefined,
   requestId: undefined,
+  purchaseType: '科研类',
+  category1: '100材料',
+  category2: '112科研类低值易耗品',
+  projectBelong: '李迪科学家工作室',
   itemName: '',
   spec: '',
   brand: '',
-  unit: '',
+  unit: '个',
   quantity: undefined,
   unitPrice: undefined,
   amount: 0,
   bomItemId: undefined,
   sortNo: undefined,
+  link: '',
+  platform: '',
+  supplierId: undefined,
   remark: ''
 });
 
@@ -309,7 +389,6 @@ const data = reactive<PageData<RequestForm, RequestQuery>>({
     purchaseType: ''
   },
   rules: {
-    title: [{ required: true, message: '申请标题不能为空', trigger: 'blur' }],
     projectId: [{ required: true, message: '项目不能为空', trigger: 'change' }]
   }
 });
@@ -399,11 +478,52 @@ const handleUpdate = async (row?: RequestVO) => {
 };
 
 /** 添加明细行 */
-const addItemRow = () => {
-  if (!form.value.items) {
-    form.value.items = [];
+/** 明细弹窗状态 */
+const itemFormRef = ref<ElFormInstance>();
+const itemDialog = reactive<DialogOption>({ visible: false, title: '' });
+const itemForm = ref<RequestItemForm>(emptyItem());
+const editingItemIndex = ref<number | undefined>(undefined);
+const unitOptions = ['个', '台', '套', '盒', '包', '箱', '米', '厘米', '毫米', '千克', '克', '升', '毫升', '根', '张', '卷', '块', '条', '把', '片', '对', '副', '袋', '瓶'];
+
+/** 打开明细弹窗(新增或编辑) */
+const openItemDialog = (index?: number) => {
+  if (index === undefined) {
+    itemForm.value = emptyItem();
+    editingItemIndex.value = undefined;
+    itemDialog.title = '添加明细';
+  } else {
+    itemForm.value = { ...form.value.items[index] };
+    editingItemIndex.value = index;
+    itemDialog.title = '编辑明细';
   }
-  form.value.items.push(emptyItem());
+  itemDialog.visible = true;
+};
+
+/** 链接失焦自动识别平台 */
+const onItemLinkBlur = () => {
+  if (itemForm.value.link) {
+    itemForm.value.platform = detectPlatform(itemForm.value.link);
+  }
+};
+
+/** 确认明细：keepOpen=true 表示"再添加一个" */
+const confirmItem = (keepOpen: boolean) => {
+  const qty = Number(itemForm.value.quantity) || 0;
+  const price = Number(itemForm.value.unitPrice) || 0;
+  itemForm.value.amount = Number((qty * price).toFixed(2));
+  if (editingItemIndex.value === undefined) {
+    if (!form.value.items) {
+      form.value.items = [];
+    }
+    form.value.items.push({ ...itemForm.value });
+  } else {
+    form.value.items[editingItemIndex.value] = { ...itemForm.value };
+  }
+  if (keepOpen) {
+    itemForm.value = emptyItem();
+  } else {
+    itemDialog.visible = false;
+  }
 };
 
 /** 删除明细行 */
@@ -417,6 +537,46 @@ const calcItem = (index: number) => {
   const qty = Number(item.quantity) || 0;
   const price = Number(item.unitPrice) || 0;
   item.amount = Number((qty * price).toFixed(2));
+};
+
+/** 从链接/标题识别平台（平台视为供应商） */
+const detectPlatform = (text: string) => {
+  if (!text) return '';
+  const t = String(text).toLowerCase();
+  if (t.includes('tmall.com')) return '天猫';
+  if (t.includes('taobao.com')) return '淘宝';
+  if (t.includes('jd.com')) return '京东';
+  if (t.includes('pinduoduo.com') || t.includes('yangkeduo.com')) return '拼多多';
+  if (t.includes('1688.com')) return '1688';
+  if (t.includes('douyin.com')) return '抖音';
+  if (t.includes('淘宝') || t.includes('-tm')) return '淘宝';
+  if (t.includes('天猫')) return '天猫';
+  if (t.includes('京东') || t.includes('-jd')) return '京东';
+  if (t.includes('拼多多')) return '拼多多';
+  if (t.includes('1688')) return '1688';
+  if (t.includes('抖音')) return '抖音';
+  return '其他';
+};
+
+/** 链接失焦自动识别平台 */
+const onLinkBlur = (index: number) => {
+  const item = form.value.items[index];
+  if (item.link) {
+    item.platform = detectPlatform(item.link);
+  }
+};
+
+/** 明细供应商下拉：按平台过滤（平台为空/其他则全显示） */
+const filterSuppliers = (platform?: string) => {
+  if (!platform || platform === '其他') return supplierOptions.value;
+  return supplierOptions.value.filter((s) => !s.platform || s.platform === platform);
+};
+
+/** 供应商 id → 名称（展示用） */
+const supplierNameOf = (id?: number | string) => {
+  if (!id) return '';
+  const s = supplierOptions.value.find((x) => x.id === id);
+  return s ? s.supplierName : '';
 };
 
 /** 保存草稿 */

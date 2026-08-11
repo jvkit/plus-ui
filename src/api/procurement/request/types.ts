@@ -1,6 +1,10 @@
 export interface RequestItemVO {
   id: number | string;
   requestId: number | string;
+  purchaseType: string;
+  category1: string;
+  category2: string;
+  projectBelong: string;
   itemName: string;
   spec: string;
   brand: string;
@@ -10,6 +14,10 @@ export interface RequestItemVO {
   amount: number;
   bomItemId: number | string;
   sortNo: number;
+  link: string;
+  platform: string;
+  supplierId: number | string;
+  supplierName: string;
   remark: string;
   createTime: string;
   updateTime: string;
@@ -35,6 +43,10 @@ export interface RequestVO extends BaseEntity {
 export interface RequestItemForm {
   id: number | string | undefined;
   requestId: number | string | undefined;
+  purchaseType: string;
+  category1: string;
+  category2: string;
+  projectBelong: string;
   itemName: string;
   spec: string;
   brand: string;
@@ -44,6 +56,9 @@ export interface RequestItemForm {
   amount: number | undefined;
   bomItemId: number | string | undefined;
   sortNo: number | undefined;
+  link: string;
+  platform: string;
+  supplierId: number | string | undefined;
   remark: string;
 }
 

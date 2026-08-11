@@ -85,12 +85,32 @@
         <el-row>
           <el-col :span="12">
             <el-form-item label="供应商编码" prop="supplierCode">
-              <el-input v-model="form.supplierCode" placeholder="请输入供应商编码" maxlength="64" />
+              <el-input v-model="form.supplierCode" placeholder="不填自动生成" maxlength="64" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="供应商名称" prop="supplierName">
               <el-input v-model="form.supplierName" placeholder="请输入供应商名称" maxlength="200" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="平台" prop="platform">
+              <el-select v-model="form.platform" placeholder="选择平台(可选)" clearable style="width: 100%">
+                <el-option label="淘宝" value="淘宝" />
+                <el-option label="天猫" value="天猫" />
+                <el-option label="京东" value="京东" />
+                <el-option label="拼多多" value="拼多多" />
+                <el-option label="1688" value="1688" />
+                <el-option label="抖音" value="抖音" />
+                <el-option label="其他" value="其他" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="店铺链接" prop="link">
+              <el-input v-model="form.link" placeholder="店铺/商品链接" maxlength="500" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -170,6 +190,8 @@ const initFormData: SupplierForm = {
   id: undefined,
   supplierCode: '',
   supplierName: '',
+  platform: '',
+  link: '',
   contactName: '',
   contactPhone: '',
   address: '',
@@ -190,7 +212,6 @@ const data = reactive<PageData<SupplierForm, SupplierQuery>>({
     status: undefined
   },
   rules: {
-    supplierCode: [{ required: true, message: '供应商编码不能为空', trigger: 'blur' }],
     supplierName: [{ required: true, message: '供应商名称不能为空', trigger: 'blur' }],
     status: [{ required: true, message: '状态不能为空', trigger: 'change' }]
   }
