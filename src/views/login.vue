@@ -182,28 +182,36 @@ watch(
 );
 
 const handleLogin = () => {
+  const doLogin = async () => {
+    loading.value = true;
+    if (loginForm.value.rememberMe) {
+      localStorage.setItem('username', String(loginForm.value.username));
+      localStorage.setItem('rememberMe', String(loginForm.value.rememberMe));
+    } else {
+      localStorage.removeItem('username');
+      localStorage.removeItem('rememberMe');
+    }
+    localStorage.removeItem('password');
+    const [err] = await to(userStore.login(loginForm.value));
+    if (!err) {
+      const redirectUrl = redirect.value || '/';
+      await router.push(redirectUrl);
+    } else {
+      if (captchaEnabled.value) {
+        await getCode();
+      }
+    }
+    loading.value = false;
+  };
+
+  // 未启用验证码时跳过表单校验（避免 code 必填项阻塞登录）
+  if (!captchaEnabled.value) {
+    doLogin();
+    return;
+  }
   loginRef.value?.validate(async (valid: boolean, fields: any) => {
     if (valid) {
-      loading.value = true;
-      if (loginForm.value.rememberMe) {
-        localStorage.setItem('username', String(loginForm.value.username));
-        localStorage.setItem('rememberMe', String(loginForm.value.rememberMe));
-      } else {
-        localStorage.removeItem('username');
-        localStorage.removeItem('rememberMe');
-      }
-      localStorage.removeItem('password');
-      const [err] = await to(userStore.login(loginForm.value));
-      if (!err) {
-        const redirectUrl = redirect.value || '/';
-        await router.push(redirectUrl);
-        loading.value = false;
-      } else {
-        loading.value = false;
-        if (captchaEnabled.value) {
-          await getCode();
-        }
-      }
+      doLogin();
     } else {
       console.log('error submit!', fields);
     }
