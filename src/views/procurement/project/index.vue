@@ -53,8 +53,8 @@
         <el-table-column type="selection" width="55" align="center" />
         <el-table-column v-if="false" label="主键" align="center" prop="id" />
         <el-table-column v-if="false" label="项目编码" align="center" prop="projectCode" :show-overflow-tooltip="true" />
-        <el-table-column label="项目名称" align="center" prop="projectName" :show-overflow-tooltip="true" />
-        <el-table-column label="归属部门" align="center" prop="deptName" width="140" />
+        <el-table-column label="资金来源" align="center" prop="deptName" width="160" />
+        <el-table-column label="项目名称" align="center" prop="projectName" min-width="260" :show-overflow-tooltip="true" />
         <el-table-column label="项目负责人" align="center" prop="leader" />
         <el-table-column label="项目预算" align="center" prop="budget" width="120">
           <template #default="scope">
@@ -71,8 +71,6 @@
             <span :class="remainingOf(scope.row) < 0 ? 'text-red-500 font-bold' : ''">{{ remainingOf(scope.row).toFixed(2) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="开始日期" align="center" prop="startDate" width="120" />
-        <el-table-column label="结束日期" align="center" prop="endDate" width="120" />
         <el-table-column label="状态" align="center" prop="status" width="80">
           <template #default="scope">
             <el-tag :type="scope.row.status === 1 ? 'success' : 'danger'">{{ scope.row.status === 1 ? '正常' : '停用' }}</el-tag>
