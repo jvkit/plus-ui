@@ -63,3 +63,11 @@ export function submitRequest(data: RequestForm) {
     data: data
   });
 }
+
+// 查询采购分类树
+export function listCategoryTree() {
+  return request({
+    url: '/procurement/category/tree',
+    method: 'get'
+  });
+}

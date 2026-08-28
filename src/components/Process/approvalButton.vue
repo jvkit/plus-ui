@@ -63,9 +63,9 @@ const submitButtonShow = computed(() => {
   );
 });
 
-//校验审批按钮是否显示
+//校验审批按钮是否显示（待审核、已退回均可办理）
 const approvalButtonShow = computed(() => {
-  return props.pageType === 'approval' && props.status && props.status === 'waiting';
+  return props.pageType === 'approval' && props.status && (props.status === 'waiting' || props.status === 'back');
 });
 
 //返回

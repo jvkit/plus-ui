@@ -83,12 +83,7 @@
     <el-dialog v-model="dialog.visible" :title="dialog.title" width="700px" append-to-body>
       <el-form ref="supplierFormRef" :model="form" :rules="rules" label-width="100px">
         <el-row>
-          <el-col :span="12">
-            <el-form-item label="供应商编码" prop="supplierCode">
-              <el-input v-model="form.supplierCode" placeholder="不填自动生成" maxlength="64" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
+          <el-col :span="24">
             <el-form-item label="供应商名称" prop="supplierName">
               <el-input v-model="form.supplierName" placeholder="请输入供应商名称" maxlength="200" />
             </el-form-item>

@@ -11,6 +11,14 @@ export function listProject(query: ProjectQuery): AxiosPromise<ProjectVO[]> {
   });
 }
 
+// 查询采购项目树形列表
+export function treeProject(): AxiosPromise<ProjectVO[]> {
+  return request({
+    url: '/procurement/project/tree',
+    method: 'get'
+  });
+}
+
 // 查询采购项目详细
 export function getProject(id: string | number): AxiosPromise<ProjectVO> {
   return request({

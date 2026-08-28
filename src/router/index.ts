@@ -63,6 +63,12 @@ export const constantRoutes: RouteRecordRaw[] = [
     hidden: true
   },
   {
+    path: '/mobile/acceptance',
+    component: () => import('@/views/mobile/acceptance/index.vue'),
+    hidden: true,
+    meta: { title: '移动验收' }
+  },
+  {
     path: '',
     component: Layout,
     redirect: '/index',

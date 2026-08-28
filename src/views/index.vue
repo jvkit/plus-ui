@@ -2,16 +2,14 @@
   <div class="home">
     <section class="hero-panel">
       <div class="hero-copy">
-        <h1>RuoYi-Vue-Plus 控制台</h1>
+        <h1>OA 协同办公系统</h1>
         <p>
-          企业级后台管理系统 重写 RuoYi-Vue 所有功能 集成 Sa-Token、Mybatis-Plus、WarmFlow、SpringDoc、Hutool、OSS
-          等组件
+          多租户中后台管理平台，深度集成采购流程管理（PMS）与 AI 智能能力：项目编码自动生成、分类树形选择、
+          采购申请自动命名与 Excel 导出，配合工作流审批与 AI 助手，让采购与办公高效协同。
         </p>
         <div class="hero-actions">
-          <el-button type="primary" @click="goTarget('https://gitee.com/dromara/RuoYi-Vue-Plus')">查看源码</el-button>
-          <el-button plain @click="goTarget('https://plus-doc.dromara.org/#/ruoyi-vue-plus/changlog')">
-            更新日志
-          </el-button>
+          <el-button type="primary" @click="go('/procurement/request')">进入采购申请</el-button>
+          <el-button plain @click="go('/aichat')">打开 AI 助手</el-button>
         </div>
       </div>
     </section>
@@ -20,7 +18,7 @@
       <section class="section-card">
         <div class="section-head">
           <div>
-            <h2>项目矩阵</h2>
+            <h2>核心功能</h2>
           </div>
         </div>
         <div class="product-list">
@@ -30,16 +28,15 @@
                 <h3>{{ product.name }}</h3>
                 <p>{{ product.summary }}</p>
               </div>
-              <span class="product-version">{{ product.version }}</span>
+              <span class="product-version">{{ product.badge }}</span>
             </div>
             <div class="product-tags">
               <el-tag v-for="tag in product.tags" :key="tag" effect="plain">{{ tag }}</el-tag>
             </div>
             <div class="product-actions">
-              <el-button type="primary" plain @click="goTarget(product.primaryUrl)">
-                {{ product.primaryLabel }}
+              <el-button type="primary" plain @click="go(product.route)">
+                {{ product.actionLabel }}
               </el-button>
-              <el-button plain @click="goTarget(product.secondaryUrl)">{{ product.secondaryLabel }}</el-button>
             </div>
           </article>
         </div>
@@ -48,7 +45,7 @@
       <section class="section-card capability-card">
         <div class="section-head">
           <div>
-            <h2>能力地图</h2>
+            <h2>能力亮点</h2>
           </div>
         </div>
         <div class="capability-groups">
@@ -65,46 +62,67 @@
 </template>
 
 <script setup name="Index" lang="ts">
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
+
 const products = [
   {
-    name: 'RuoYi-Vue-Plus',
-    version: 'v6.0.0',
-    summary: '面向分布式集群场景的后台管理系统，保持现有业务接口与权限逻辑，适合先完成前端壳升级。',
-    tags: ['Vue 3', 'Element Plus', 'Spring Boot', 'Sa-Token'],
-    primaryLabel: '访问 GitHub',
-    primaryUrl: 'https://github.com/dromara/RuoYi-Vue-Plus',
-    secondaryLabel: '查看更新日志',
-    secondaryUrl: 'https://plus-doc.dromara.org/#/ruoyi-vue-plus/changlog'
+    name: '采购管理',
+    badge: 'PMS',
+    summary: '采购项目、供应商、BOM、采购申请与订单的全流程闭环管理。',
+    tags: ['多级项目树', '自动编码', '分类树形选择', 'Excel 导出'],
+    actionLabel: '进入采购',
+    route: '/procurement/request'
   },
   {
-    name: 'RuoYi-Cloud-Plus',
-    version: 'v6.0.0',
-    summary: '微服务通用权限管理系统，适合更复杂的服务治理场景，也可以沿用同样的前端升级思路。',
-    tags: ['Spring Cloud', 'Gateway', 'Nacos', 'Dubbo'],
-    primaryLabel: '访问 GitHub',
-    primaryUrl: 'https://github.com/dromara/RuoYi-Cloud-Plus',
-    secondaryLabel: '查看更新日志',
-    secondaryUrl: 'https://plus-doc.dromara.org/#/ruoyi-cloud-plus/changlog'
+    name: 'AI 智能助手',
+    badge: 'AI',
+    summary: '内置 AI 对话助手，探索智能识别、审核与办公辅助能力。',
+    tags: ['AI 对话', '智能辅助'],
+    actionLabel: '打开助手',
+    route: '/aichat'
+  },
+  {
+    name: '工作流审批',
+    badge: 'Flow',
+    summary: '基于 Warm-Flow 的流程定义、实例与审批流转管理。',
+    tags: ['流程定义', '审批流转', '流程监控'],
+    actionLabel: '流程管理',
+    route: '/workflow/processDefinition'
+  },
+  {
+    name: '系统管理',
+    badge: 'Admin',
+    summary: '用户、角色、权限、菜单与字典的统一管理。',
+    tags: ['多租户', 'Sa-Token', '数据权限'],
+    actionLabel: '用户管理',
+    route: '/system/user'
   }
 ];
 
 const capabilityGroups = [
   {
-    title: '后端基建',
-    items: ['Spring Boot / Spring Cloud', 'Sa-Token 认证与权限', 'MySQL / Redis', '代码生成器']
+    title: '采购能力',
+    items: [
+      '项目与申请编码自动生成',
+      '多级项目树形结构',
+      '科研/非科研分类树形选择',
+      '申请标题自动拼接、Excel 按标题命名'
+    ]
+  },
+  {
+    title: 'AI 能力',
+    items: ['AI 对话助手', '智能识别与审核接入']
   },
   {
     title: '平台能力',
-    items: ['动态菜单与按钮权限', '监控、日志、在线用户', '任务调度与工作流', '文件存储与多云适配']
-  },
-  {
-    title: '前端方向',
-    items: ['UI 卡片化', '主题与布局统一', '通用页面容器规范化', '企业化布局']
+    items: ['多租户与数据权限', '动态菜单与按钮权限', '代码生成器', '日志与在线监控']
   }
 ];
 
-const goTarget = (url: string) => {
-  window.open(url, '__blank');
+const go = (route: string) => {
+  router.push(route);
 };
 </script>
 

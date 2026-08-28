@@ -50,7 +50,7 @@
           </el-input>
         </div>
       </el-form-item>
-      <el-form-item v-if="task.flowStatus === 'waiting'" label="审批意见">
+      <el-form-item v-if="taskRunnable" label="审批意见">
         <el-input v-model="form.message" type="textarea" resize="none" />
       </el-form-item>
     </el-form>
@@ -58,7 +58,7 @@
       <span class="dialog-footer">
         <el-button :disabled="buttonDisabled" type="primary" @click="handleCompleteTask">提交</el-button>
         <el-button
-          v-if="task.flowStatus === 'waiting' && buttonObj.trust"
+          v-if="taskRunnable && buttonObj.trust"
           :disabled="buttonDisabled"
           type="primary"
           @click="openDelegateTask"
@@ -66,7 +66,7 @@
           委托
         </el-button>
         <el-button
-          v-if="task.flowStatus === 'waiting' && buttonObj.transfer"
+          v-if="taskRunnable && buttonObj.transfer"
           :disabled="buttonDisabled"
           type="primary"
           @click="openTransferTask"
@@ -74,7 +74,7 @@
           转办
         </el-button>
         <el-button
-          v-if="task.flowStatus === 'waiting' && Number(task.nodeRatio) > 0 && buttonObj.addSign"
+          v-if="taskRunnable && Number(task.nodeRatio) > 0 && buttonObj.addSign"
           :disabled="buttonDisabled"
           type="primary"
           @click="openMultiInstanceUser"
@@ -82,7 +82,7 @@
           加签
         </el-button>
         <el-button
-          v-if="task.flowStatus === 'waiting' && Number(task.nodeRatio) > 0 && buttonObj.subSign"
+          v-if="taskRunnable && Number(task.nodeRatio) > 0 && buttonObj.subSign"
           :disabled="buttonDisabled"
           type="primary"
           @click="handleTaskUser"
@@ -90,7 +90,7 @@
           减签
         </el-button>
         <el-button
-          v-if="task.flowStatus === 'waiting' && buttonObj.termination"
+          v-if="taskRunnable && buttonObj.termination"
           :disabled="buttonDisabled"
           type="danger"
           @click="handleTerminationTask"
@@ -98,7 +98,7 @@
           终止
         </el-button>
         <el-button
-          v-if="task.flowStatus === 'waiting' && buttonObj.back"
+          v-if="taskRunnable && buttonObj.back"
           :disabled="buttonDisabled"
           type="danger"
           @click="handleBackProcessOpen"
@@ -132,7 +132,7 @@
 
     <!-- 驳回开始 -->
     <el-dialog v-model="backVisible" draggable title="驳回" width="40%" :close-on-click-modal="false">
-      <el-form v-if="task.flowStatus === 'waiting'" v-loading="backLoading" :model="backForm" label-width="120px">
+      <el-form v-if="taskRunnable" v-loading="backLoading" :model="backForm" label-width="120px">
         <el-form-item label="驳回节点">
           <el-select v-model="backForm.nodeCode" clearable placeholder="请选择" style="width: 300px">
             <el-option
@@ -150,7 +150,7 @@
             <el-checkbox value="3" name="type">短信</el-checkbox>
           </el-checkbox-group>
         </el-form-item>
-        <el-form-item v-if="task.flowStatus === 'waiting'" label="附件">
+        <el-form-item v-if="taskRunnable" label="附件">
           <fileUpload
             v-model="backForm.fileId"
             :file-type="['png', 'jpg', 'jpeg', 'doc', 'docx', 'xlsx', 'xls', 'ppt', 'txt', 'pdf']"
@@ -289,6 +289,8 @@ const dialog = reactive<DialogOption>({
   visible: false,
   title: '提示'
 });
+// 当前任务是否可办理（待审核、已退回均可继续审批/重新提交）
+const taskRunnable = computed(() => task.value.flowStatus === 'waiting' || task.value.flowStatus === 'back');
 //减签弹窗
 const deleteSignatureVisible = ref(false);
 const form = ref<Record<string, any>>({

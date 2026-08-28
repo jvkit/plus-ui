@@ -62,6 +62,9 @@ importers:
       pinia:
         specifier: 4.0.2
         version: 4.0.2(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.40(typescript@6.0.3))
+      vant:
+        specifier: ^4.10.0
+        version: 4.10.0(vue@3.5.40(typescript@6.0.3))
       vue:
         specifier: 3.5.40
         version: 3.5.40(typescript@6.0.3)
@@ -87,6 +90,9 @@ importers:
         specifier: 4.20.8
         version: 4.20.8
     devDependencies:
+      '@iconify-json/ep':
+        specifier: ^1.2.4
+        version: 1.2.4
       '@types/crypto-js':
         specifier: 4.2.2
         version: 4.2.2
@@ -102,6 +108,9 @@ importers:
       '@unocss/preset-wind3':
         specifier: 66.7.5
         version: 66.7.5
+      '@vant/touch-emulator':
+        specifier: ^1.5.0
+        version: 1.5.0
       '@vitejs/plugin-vue':
         specifier: ^6.0.8
         version: 6.0.8(vite@8.1.5(@types/node@26.1.1)(jiti@2.7.0)(sass@1.102.0)(yaml@2.9.0))(vue@3.5.40(typescript@6.0.3))
@@ -236,6 +245,9 @@ packages:
     peerDependencies:
       highlight.js: ^11.0.1
       vue: ^3
+
+  '@iconify-json/ep@1.2.4':
+    resolution: {integrity: sha512-dtKOueYp1CRxAUW+GayIiuHqOlELfO0W3QiHOH4NjvKtBn2uxZbByIKQ+7B1Hj+AgZrhWTie3QKYkZn+VQVZrw==}
 
   '@iconify/types@2.0.0':
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
@@ -984,6 +996,17 @@ packages:
     resolution: {integrity: sha512-3LV/X5Of6BINnKplP+CwUJ0a4/7cRFfzxwGyXnW+uCrNQHoo09dttcz3begWHejGvzenQHuUnMO3Fxyc71Pryg==}
     peerDependencies:
       '@uppy/core': ^5.2.0
+
+  '@vant/popperjs@1.3.0':
+    resolution: {integrity: sha512-hB+czUG+aHtjhaEmCJDuXOep0YTZjdlRR+4MSmIFnkCQIxJaXLQdSsR90XWvAI2yvKUI7TCGqR8pQg2RtvkMHw==}
+
+  '@vant/touch-emulator@1.5.0':
+    resolution: {integrity: sha512-/L2W/pehJLHGftSIiG31E0P8nibeA+SBcNptdyRymukM9zQ4Pn5Ku7Cndx5oXsY5SE9uyHaJ4M9oj+q2AROHhQ==}
+
+  '@vant/use@1.6.0':
+    resolution: {integrity: sha512-PHHxeAASgiOpSmMjceweIrv2AxDZIkWXyaczksMoWvKV2YAYEhoizRuk/xFnKF+emUIi46TsQ+rvlm/t2BBCfA==}
+    peerDependencies:
+      vue: ^3.0.0
 
   '@vitejs/plugin-vue@6.0.8':
     resolution: {integrity: sha512-0ZjgOg7oO6farnNGup7yvoM/YXZV84OZxHAwtflItNa/6zzQyVb5LNxyea3FEKEX2XlagIKzrlH7wwxkKgtiew==}
@@ -2134,6 +2157,11 @@ packages:
     peerDependencies:
       browserslist: '>= 4.21.0'
 
+  vant@4.10.0:
+    resolution: {integrity: sha512-sJ85BY1QFSX0aESqyS0FGouXCXp8hbpj9o32ug0d8C1tKpx/0x41JBgXgS4HRTe6SfebQOLWcc0B4E0A+RWdHA==}
+    peerDependencies:
+      vue: ^3.0.0
+
   vite-plugin-svg-icons-ng@1.9.2:
     resolution: {integrity: sha512-C/hLJw4irOUVNJZB7AZi5YghCSFbu59py4jl2B6AJvV2gAk43pPjk8h1pn57/ngzOrWX9+cEr/qbvBuLxCasAw==}
     engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
@@ -2415,6 +2443,10 @@ snapshots:
     dependencies:
       highlight.js: 11.11.1
       vue: 3.5.40(typescript@6.0.3)
+
+  '@iconify-json/ep@1.2.4':
+    dependencies:
+      '@iconify/types': 2.0.0
 
   '@iconify/types@2.0.0': {}
 
@@ -2987,6 +3019,14 @@ snapshots:
       '@uppy/utils': 7.2.0
     transitivePeerDependencies:
       - preact-render-to-string
+
+  '@vant/popperjs@1.3.0': {}
+
+  '@vant/touch-emulator@1.5.0': {}
+
+  '@vant/use@1.6.0(vue@3.5.40(typescript@6.0.3))':
+    dependencies:
+      vue: 3.5.40(typescript@6.0.3)
 
   '@vitejs/plugin-vue@6.0.8(vite@8.1.5(@types/node@26.1.1)(jiti@2.7.0)(sass@1.102.0)(yaml@2.9.0))(vue@3.5.40(typescript@6.0.3))':
     dependencies:
@@ -4198,6 +4238,13 @@ snapshots:
       browserslist: 4.28.7
       escalade: 3.2.0
       picocolors: 1.1.1
+
+  vant@4.10.0(vue@3.5.40(typescript@6.0.3)):
+    dependencies:
+      '@vant/popperjs': 1.3.0
+      '@vant/use': 1.6.0(vue@3.5.40(typescript@6.0.3))
+      '@vue/shared': 3.5.40
+      vue: 3.5.40(typescript@6.0.3)
 
   vite-plugin-svg-icons-ng@1.9.2(vite@8.1.5(@types/node@26.1.1)(jiti@2.7.0)(sass@1.102.0)(yaml@2.9.0)):
     dependencies:

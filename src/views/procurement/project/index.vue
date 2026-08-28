@@ -4,23 +4,11 @@
       <div v-show="showSearch" class="mb-[10px]">
         <el-card shadow="hover">
           <el-form ref="queryFormRef" :model="queryParams" :inline="true">
-            <el-form-item label="项目编码" prop="projectCode">
+            <el-form-item label="项目编码" prop="projectCode" v-if="false">
               <el-input v-model="queryParams.projectCode" placeholder="请输入项目编码" clearable @keyup.enter="handleQuery" />
             </el-form-item>
             <el-form-item label="项目名称" prop="projectName">
               <el-input v-model="queryParams.projectName" placeholder="请输入项目名称" clearable @keyup.enter="handleQuery" />
-            </el-form-item>
-            <el-form-item label="归属部门" prop="deptId">
-              <el-tree-select
-                v-model="queryParams.deptId"
-                :data="deptOptions"
-                :props="{ value: 'id', label: 'label', children: 'children' } as any"
-                value-key="id"
-                placeholder="请选择归属部门"
-                check-strictly
-                clearable
-                style="width: 200px"
-              />
             </el-form-item>
             <el-form-item label="项目负责人" prop="leader">
               <el-input v-model="queryParams.leader" placeholder="请输入项目负责人" clearable @keyup.enter="handleQuery" />
@@ -54,18 +42,35 @@
           <el-col :span="1.5">
             <el-button v-hasPermi="['procurement:project:export']" type="warning" plain icon="Download" @click="handleExport">导出</el-button>
           </el-col>
+          <el-col :span="1.5">
+            <el-button type="info" plain icon="Sort" @click="handleToggleExpandAll">展开/折叠</el-button>
+          </el-col>
           <right-toolbar v-model:show-search="showSearch" @query-table="getList"></right-toolbar>
         </el-row>
       </template>
 
-      <el-table v-loading="loading" border :data="projectList" row-key="id" :tree-props="{ children: 'children', hasChildren: 'hasChildren' }" :default-expand-all="true" @selection-change="handleSelectionChange">
+      <el-table ref="treeTableRef" v-loading="loading" border :data="projectList" row-key="id" :tree-props="{ children: 'children', hasChildren: 'hasChildren' }" :default-expand-all="isExpandAll" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
         <el-table-column v-if="false" label="主键" align="center" prop="id" />
-        <el-table-column label="项目编码" align="center" prop="projectCode" :show-overflow-tooltip="true" />
+        <el-table-column v-if="false" label="项目编码" align="center" prop="projectCode" :show-overflow-tooltip="true" />
         <el-table-column label="项目名称" align="center" prop="projectName" :show-overflow-tooltip="true" />
-        <el-table-column label="归属部门" align="center" prop="deptName" :show-overflow-tooltip="true" />
+        <el-table-column label="归属部门" align="center" prop="deptName" width="140" />
         <el-table-column label="项目负责人" align="center" prop="leader" />
-        <el-table-column label="项目预算" align="center" prop="budget" />
+        <el-table-column label="项目预算" align="center" prop="budget" width="120">
+          <template #default="scope">
+            <span>{{ (Number(scope.row.budget) || 0).toFixed(2) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="已用金额" align="center" prop="usedAmount" width="120">
+          <template #default="scope">
+            <span>{{ (Number(scope.row.usedAmount) || 0).toFixed(2) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="剩余资金" align="center" width="120">
+          <template #default="scope">
+            <span :class="remainingOf(scope.row) < 0 ? 'text-red-500 font-bold' : ''">{{ remainingOf(scope.row).toFixed(2) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="开始日期" align="center" prop="startDate" width="120" />
         <el-table-column label="结束日期" align="center" prop="endDate" width="120" />
         <el-table-column label="状态" align="center" prop="status" width="80">
@@ -81,7 +86,7 @@
         </el-table-column>
         <el-table-column label="操作" align="center" width="190" class-name="small-padding fixed-width">
           <template #default="scope">
-            <el-tooltip v-if="!scope.row.parentId || scope.row.parentId === 0" content="新增二级项目" placement="top">
+            <el-tooltip content="新增子项目" placement="top">
               <el-button v-hasPermi="['procurement:project:add']" link type="primary" icon="CirclePlusFilled" @click="handleAddSub(scope.row)"></el-button>
             </el-tooltip>
             <el-tooltip content="修改" placement="top">
@@ -100,33 +105,22 @@
       <el-form ref="projectFormRef" :model="form" :rules="rules" label-width="100px">
         <el-row>
           <el-col :span="12">
-            <el-form-item label="项目编码" prop="projectCode">
-              <el-input v-model="form.projectCode" placeholder="请输入项目编码" maxlength="64" />
+            <el-form-item label="项目名称" prop="projectName">
+              <el-input v-model="form.projectName" placeholder="请输入项目名称" maxlength="200" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="项目名称" prop="projectName">
-              <el-input v-model="form.projectName" placeholder="请输入项目名称" maxlength="200" />
+            <el-form-item label="归属部门" prop="deptId">
+              <el-tree-select v-model="form.deptId" :data="deptTree" :props="deptTreeProps" check-strictly clearable placeholder="选择归属部门" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row>
           <el-col :span="12">
-            <el-form-item label="归属部门" prop="deptId">
-              <el-tree-select
-                v-model="form.deptId"
-                :data="deptOptions"
-                :props="{ value: 'id', label: 'label', children: 'children' } as any"
-                value-key="id"
-                placeholder="请选择归属部门"
-                check-strictly
-                style="width: 100%"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
             <el-form-item label="项目负责人" prop="leader">
-              <el-input v-model="form.leader" placeholder="请输入项目负责人" maxlength="100" />
+              <el-select v-model="form.leaderId" filterable clearable placeholder="选择负责人（真实用户）" style="width: 100%" @change="onLeaderChange">
+                <el-option v-for="u in userOptions" :key="u.userId" :label="u.nickName" :value="u.userId" />
+              </el-select>
             </el-form-item>
           </el-col>
         </el-row>
@@ -174,8 +168,10 @@
 <script setup name="ProcurementProject" lang="ts">
 import { listProject, getProject, delProject, addProject, updateProject } from '@/api/procurement/project';
 import { ProjectForm, ProjectQuery, ProjectVO } from '@/api/procurement/project/types';
-import { deptTreeSelect } from '@/api/system/user';
-import { DeptTreeVO } from '@/api/system/dept/types';
+import { listUser } from '@/api/system/user';
+import type { UserVO } from '@/api/system/user/types';
+import { listDept } from '@/api/system/dept';
+import { useTreeTableExpand } from '@/hooks/tree/useTreeTableExpand';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 
@@ -186,10 +182,14 @@ const ids = ref<Array<number | string>>([]);
 const single = ref(true);
 const multiple = ref(true);
 const total = ref(0);
-const deptOptions = ref<DeptTreeVO[]>([]);
 
 const queryFormRef = ref<ElFormInstance>();
 const projectFormRef = ref<ElFormInstance>();
+const treeTableRef = ref<ElTableInstance>();
+const { isExpandAll, handleToggleExpandAll } = useTreeTableExpand<ProjectVO>({
+  tableRef: treeTableRef,
+  data: projectList
+});
 const dialog = reactive<DialogOption>({
   visible: false,
   title: ''
@@ -202,6 +202,7 @@ const initFormData: ProjectForm = {
   projectName: '',
   deptId: undefined,
   leader: '',
+  leaderId: undefined,
   budget: undefined,
   startDate: '',
   endDate: '',
@@ -216,25 +217,16 @@ const data = reactive<PageData<ProjectForm, ProjectQuery>>({
     pageSize: 10,
     projectCode: '',
     projectName: '',
-    deptId: undefined,
     leader: '',
     status: undefined
   },
   rules: {
-    projectCode: [{ required: true, message: '项目编码不能为空', trigger: 'blur' }],
     projectName: [{ required: true, message: '项目名称不能为空', trigger: 'blur' }],
-    deptId: [{ required: true, message: '归属部门不能为空', trigger: 'change' }],
     status: [{ required: true, message: '状态不能为空', trigger: 'change' }]
   }
 });
 
 const { queryParams, form, rules } = toRefs(data);
-
-/** 查询部门树 */
-const getDeptTree = async () => {
-  const res = await deptTreeSelect();
-  deptOptions.value = res.data;
-};
 
 /** 查询采购项目列表 */
 const getList = async () => {
@@ -243,6 +235,11 @@ const getList = async () => {
   projectList.value = proxy?.handleTree(res.data.rows, 'id', 'parentId', 'children') || [];
   total.value = res.data.total;
   loading.value = false;
+};
+
+/** 计算剩余资金 = 预算 - 已用 */
+const remainingOf = (row: ProjectVO) => {
+  return (Number(row.budget) || 0) - (Number(row.usedAmount) || 0);
 };
 
 /** 取消按钮 */
@@ -284,12 +281,12 @@ const handleAdd = () => {
   dialog.title = '添加项目';
 };
 
-/** 新增二级项目 */
+/** 新增子项目 */
 const handleAddSub = (row: ProjectVO) => {
   reset();
   form.value.parentId = row.id;
   dialog.visible = true;
-  dialog.title = '添加二级项目 - ' + row.projectName;
+  dialog.title = '添加子项目 - ' + row.projectName;
 };
 
 /** 修改按钮操作 */
@@ -328,8 +325,35 @@ const handleExport = () => {
   proxy?.download('procurement/project/export', queryParams.value, `project_${new Date().getTime()}.xlsx`);
 };
 
+const userOptions = ref<UserVO[]>([]);
+const deptTree = ref<any[]>([]);
+const deptTreeProps = { value: 'deptId', label: 'deptName', children: 'children' } as any;
+
+/** 加载用户列表（负责人选择器） */
+const loadUserOptions = async () => {
+  const res = await listUser({ pageNum: 1, pageSize: 1000 } as any);
+  userOptions.value = res.data.rows || [];
+};
+
+/** 加载部门树（归属部门选择器） */
+const loadDeptOptions = async () => {
+  const res = await listDept({} as any);
+  deptTree.value = proxy?.handleTree(res.data, 'deptId', 'parentId', 'children') || [];
+};
+
+/** 负责人选中后回写姓名 */
+const onLeaderChange = (userId: number | string) => {
+  const u = userOptions.value.find((x) => x.userId === userId);
+  form.value.leader = u ? u.nickName : '';
+};
+
 onMounted(() => {
-  getDeptTree();
   getList();
+  loadUserOptions();
+  loadDeptOptions();
 });
 </script>
+
+<style lang="scss" scoped>
+/* 树形层级缩进由 el-table 的 tree-props 原生支持，无需额外样式 */
+</style>
