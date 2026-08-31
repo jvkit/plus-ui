@@ -137,9 +137,12 @@
         <template #header>
           <div class="card-header">
             <span>验收明细</span>
-            <el-alert type="info" :closable="false" show-icon class="inline-alert">
-              <template #title>填写发票金额后系统自动核对：不超过申请单价显示「通过」，超出显示「冲红」；实物图片、发票附件每行必填</template>
-            </el-alert>
+            <div class="card-header-actions">
+              <el-alert type="info" :closable="false" show-icon class="inline-alert">
+                <template #title>填写发票金额后系统自动核对：不超过申请单价显示「通过」，超出显示「冲红」；实物图片、发票附件每行必填</template>
+              </el-alert>
+              <el-button type="primary" plain icon="MagicStick" @click="openAiMatch">AI 识别发票</el-button>
+            </div>
           </div>
         </template>
         <el-table :data="form.items" border size="small">
@@ -155,7 +158,9 @@
           </el-table-column>
           <el-table-column label="金额核对" align="center" width="90">
             <template #default="scope">
-              <el-tag :type="scope.row.priceCheck === 'over' ? 'danger' : 'success'">{{ scope.row.priceCheck === 'over' ? '冲红' : '通过' }}</el-tag>
+              <el-tag :type="scope.row.priceCheck === 'red' ? 'danger' : (scope.row.priceCheck === 'over' ? 'warning' : 'success')">
+                {{ scope.row.priceCheck === 'red' ? '冲红' : (scope.row.priceCheck === 'over' ? '超标' : '通过') }}
+              </el-tag>
             </template>
           </el-table-column>
           <el-table-column label="实物图片" align="center" width="140">
@@ -184,14 +189,56 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- AI 批量识别发票对话框 -->
+    <el-dialog v-model="aiDialog.visible" title="AI 批量识别发票" width="720px" append-to-body :close-on-click-modal="false">
+      <el-alert type="info" :closable="false" show-icon class="mb-2">
+        <template #title>上传多张发票 PDF（可一次多张，也可分多轮补充）。系统自动识别票面字段并按商品名匹配，匹配成功的自动填「发票金额(不含税)」并保存发票附件；冲红票会标记「冲红」；不相干的发票不会自动上传。</template>
+      </el-alert>
+      <div class="mb-2">
+        <el-upload
+          ref="aiUploadRef"
+          multiple
+          drag
+          :auto-upload="false"
+          :limit="20"
+          :file-type="['pdf']"
+          accept=".pdf"
+          v-model:file-list="aiDialog.fileList"
+        >
+          <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+          <div class="el-upload__text">将发票 PDF 拖到此处，或<em>点击选择</em></div>
+          <template #tip>
+            <div class="el-upload__tip">仅支持 PDF，可一次多张</div>
+          </template>
+        </el-upload>
+      </div>
+
+      <div v-if="aiDialog.report && aiDialog.report.lines" class="ai-report">
+        <div class="ai-report-title">识别结果</div>
+        <el-alert v-for="(line, i) in aiDialog.report.lines" :key="i" :closable="false" show-icon class="mb-1"
+          :type="line.includes('✅') ? 'success' : (line.includes('❌') ? 'error' : 'warning')">
+          <template #title>{{ line }}</template>
+        </el-alert>
+      </div>
+
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button type="primary" :loading="aiDialog.loading" @click="startAiMatch">开始识别</el-button>
+          <el-button @click="aiDialog.visible = false; aiDialog.fileList = []; aiDialog.report = null">关 闭</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup name="ProcurementAcceptance" lang="ts">
-import { listAcceptance, getAcceptance, delAcceptance, addAcceptance, updateAcceptance, exportAcceptance, acceptableRequestList, submitAcceptance } from '@/api/procurement/acceptance';
+import { listAcceptance, getAcceptance, delAcceptance, addAcceptance, updateAcceptance, exportAcceptance, acceptableRequestList, submitAcceptance, aiInvoiceMatch } from '@/api/procurement/acceptance';
 import { AcceptanceForm, AcceptanceQuery, AcceptanceItemForm, AcceptanceVO } from '@/api/procurement/acceptance/types';
 import { getRequest } from '@/api/procurement/request';
 import { listProject } from '@/api/procurement/project';
+import request from '@/utils/request';
+import { UploadUserFile } from 'element-plus';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 
@@ -219,6 +266,18 @@ const acceptanceFormRef = ref<ElFormInstance>();
 const dialog = reactive<DialogOption>({
   visible: false,
   title: ''
+});
+
+const aiDialog = reactive<{
+  visible: boolean;
+  loading: boolean;
+  fileList: UploadUserFile[];
+  report: { lines: string[] } | null;
+}>({
+  visible: false,
+  loading: false,
+  fileList: [],
+  report: null
 });
 
 const emptyItem = (): AcceptanceItemForm => ({
@@ -309,13 +368,123 @@ const onRequestChange = async (val: number | string | undefined) => {
   form.value.items = rows;
 };
 
-/** 自动核对：发票金额 <= 申请单价 为通过(pass)，超出为冲红(over) */
+/** 打开 AI 识别发票对话框 */
+const openAiMatch = () => {
+  if (!form.value.items || form.value.items.length === 0) {
+    proxy?.$modal.msgError('请先选择关联采购申请，带出验收明细');
+    return;
+  }
+  aiDialog.visible = true;
+  aiDialog.fileList = [];
+  aiDialog.report = null;
+};
+
+/** 上传 PDF 到 OSS，返回 ossId（repeatSubmit:false 允许多张发票连续上传不被防重复拦截） */
+const uploadPdfToOss = async (file: File): Promise<string> => {
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await request({
+    url: '/resource/oss/upload',
+    method: 'post',
+    data: fd,
+    headers: { 'Content-Type': 'multipart/form-data', repeatSubmit: false }
+  });
+  return res.data.ossId;
+};
+
+/** 开始 AI 识别 + 匹配（支持多轮：只传尚未填发票金额的明细，已填的不重复处理） */
+const startAiMatch = async () => {
+  const files = aiDialog.fileList.filter((f) => f.raw).map((f) => f.raw as File);
+  if (files.length === 0) {
+    proxy?.$modal.msgError('请先选择发票 PDF 文件');
+    return;
+  }
+  // 只把「尚未填发票金额」的明细送匹配，已填的视为已处理（支持多轮补充上传）
+  const pendingItems = (form.value.items || []).filter(
+    (it: AcceptanceItemForm) => it.invoicePrice === undefined || it.invoicePrice === null
+  );
+  if (pendingItems.length === 0) {
+    proxy?.$modal.msgError('所有明细都已填写发票金额，无需再识别');
+    return;
+  }
+  const items = pendingItems.map((it: AcceptanceItemForm) => ({
+    id: it.sourceItemId ?? it.id,
+    itemName: it.itemName,
+    spec: it.spec,
+    applyPrice: Number(it.applyPrice) || 0,
+    quantity: 1
+  }));
+
+  aiDialog.loading = true;
+  aiDialog.report = null;
+  try {
+    const res = await aiInvoiceMatch(items, files);
+    const data = res.data || res;
+    const results: any[] = data.results || [];
+    // 匹配成功的：填发票单价（不含税口径）+ 上传 PDF 到 OSS 回填 invoiceUrl
+    // 按 originalName 找原始文件（不依赖 results/files 顺序，并发返回也可能乱序）
+    const fileByName = new Map(files.map((f: File) => [f.name, f]));
+    for (let idx = 0; idx < results.length; idx++) {
+      const r = results[idx];
+      if (r.matchStatus !== 'matched' || !r.matchedItemIds || r.matchedItemIds.length === 0) continue;
+      const matchedIds = new Set(r.matchedItemIds.map(String));
+      const unitPrices: Record<string, number> = r.matchedUnitPrices || {};
+      const checks: Record<string, string> = {};
+      (r.amountCheck?.items || []).forEach((c: any) => { checks[String(c.itemId)] = c.status; });
+      const targetRows = (form.value.items || []).filter((it: AcceptanceItemForm) =>
+        matchedIds.has(String(it.sourceItemId ?? it.id))
+      );
+      if (targetRows.length === 0) continue;
+      const isRed = !!r.extracted?.is_red_invoice;
+      // 按 originalName 匹配原始文件，上传 OSS 作为附件
+      const rawFile = fileByName.get(r.originalName);
+      let ossId = '';
+      if (rawFile) {
+        try {
+          ossId = await uploadPdfToOss(rawFile);
+        } catch (e) {
+          proxy?.$modal.msgWarning('发票附件上传失败，请手动上传：' + r.originalName);
+        }
+      }
+      for (const row of targetRows) {
+        const rowId = String(row.sourceItemId ?? row.id);
+        const unitPrice = unitPrices[rowId];
+        if (unitPrice !== undefined && unitPrice !== null) {
+          row.invoicePrice = Number(unitPrice);
+        }
+        if (ossId) row.invoiceUrl = ossId;
+        if (isRed) {
+          row.priceCheck = 'red';
+        } else {
+          // 逐商品核对：单价超标才标 over，其余 pass
+          const st = checks[rowId];
+          row.priceCheck = st === 'amount_exceed' ? 'over' : 'pass';
+        }
+        row.result = row.priceCheck;
+      }
+    }
+    aiDialog.report = { lines: data.summary?.lines || [] };
+    proxy?.$modal.msgSuccess(`识别完成：匹配 ${data.summary?.matchedInvoiceCount ?? 0} 张发票`);
+  } catch (e: any) {
+    proxy?.$modal.msgError('AI 识别失败：' + (e?.message || '请稍后重试'));
+  } finally {
+    aiDialog.loading = false;
+  }
+};
+
+/** 自动核对（不含税口径）：负数=冲红(red)，发票金额>申请金额=超标(over)，否则通过(pass) */
 const calcPriceCheck = (index: number) => {
   const row = form.value.items[index];
   if (!row) return;
-  const invoice = Number(row.invoicePrice) || 0;
+  const invoice = Number(row.invoicePrice);
   const apply = Number(row.applyPrice) || 0;
-  row.priceCheck = invoice > apply ? 'over' : 'pass';
+  if (Number.isFinite(invoice) && invoice < 0) {
+    row.priceCheck = 'red';      // 红字/冲红发票
+  } else if (Number.isFinite(invoice) && invoice > apply) {
+    row.priceCheck = 'over';     // 超标
+  } else {
+    row.priceCheck = 'pass';
+  }
   row.result = row.priceCheck;
 };
 
@@ -457,8 +626,30 @@ onActivated(() => {
   align-items: center;
   gap: 12px;
 }
+.card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  justify-content: space-between;
+}
 .inline-alert {
   flex: 1;
   max-width: 720px;
+}
+.ai-report {
+  margin-top: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.ai-report-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.mb-2 {
+  margin-bottom: 12px;
+}
+.mb-1 {
+  margin-bottom: 4px;
 }
 </style>

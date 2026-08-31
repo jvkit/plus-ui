@@ -71,3 +71,18 @@ export function acceptableRequestList(): AxiosPromise<any[]> {
     method: 'get'
   });
 }
+
+// 发票批量识别 + 匹配（调用 agents 智能体服务）
+// items: 验收明细数组（itemName/spec/applyPrice/quantity/id），files: 发票 PDF 数组
+export function aiInvoiceMatch(items: any[], files: File[]): AxiosPromise<any> {
+  const formData = new FormData();
+  formData.append('items', JSON.stringify(items));
+  files.forEach((f) => formData.append('files', f));
+  return request({
+    url: '/procurement/acceptance/ai-invoice-match',
+    method: 'post',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 300000
+  });
+}
