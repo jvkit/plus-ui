@@ -238,6 +238,8 @@
           <el-table-column label="金额" align="center" width="100">
             <template #default="scope"><span>{{ (Number(scope.row.amount) || 0).toFixed(2) }}</span></template>
           </el-table-column>
+          <el-table-column label="物料用途" align="center" prop="materialUsage" width="120" :show-overflow-tooltip="true" />
+          <el-table-column label="采购原因" align="center" prop="purchaseReason" width="140" :show-overflow-tooltip="true" />
           <el-table-column label="操作" align="center" width="100">
             <template #default="scope">
               <el-button link type="primary" icon="Edit" @click="openItemDialog(scope.$index)"></el-button>
@@ -300,6 +302,21 @@
             <el-col :span="12">
               <el-form-item label="商品链接" prop="link">
                 <el-input v-model="itemForm.link" placeholder="商品链接/标题（一阶段纯手填，二阶段扒价）" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row>
+            <el-col :span="12">
+              <el-form-item label="物料用途" prop="materialUsage">
+                <el-select v-model="itemForm.materialUsage" allow-create filterable default-first-option placeholder="选择或输入物料用途" style="width: 100%">
+                  <el-option label="研发" value="研发" />
+                  <el-option label="组装产品出售" value="组装产品出售" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="采购原因" prop="purchaseReason">
+                <el-input v-model="itemForm.purchaseReason" type="textarea" :rows="2" placeholder="该明细的采购原因（导出Excel的采购理由列，留空则用申请理由）" />
               </el-form-item>
             </el-col>
           </el-row>
@@ -389,8 +406,8 @@ const treeProps = {
   label: 'projectName',
   children: 'children'
 } as any;
-/** 分类树选择器 props：一级节点（有子节点）不可选，仅叶子可选 */
-const categoryTreeProps = { value: 'value', label: 'label', children: 'children', disabled: 'disabled' } as any;
+/** 分类树选择器 props */
+const categoryTreeProps = { value: 'value', label: 'label', children: 'children' } as any;
 
 const statusOptions = ref([
   { label: '草稿', value: 'draft', elTagType: 'info' },
@@ -418,7 +435,7 @@ const emptyItem = (): RequestItemForm => ({
   requestId: undefined,
   purchaseType: '科研类',
   category1: '100材料',
-  category2: '112科研类低值易耗品',
+  category2: '100材料',
   itemName: '',
   spec: '',
   brand: '',
@@ -426,6 +443,8 @@ const emptyItem = (): RequestItemForm => ({
   quantity: undefined,
   unitPrice: undefined,
   amount: 0,
+  materialUsage: '研发',
+  purchaseReason: '',
   link: '',
   sortNo: undefined,
   remark: ''
@@ -514,10 +533,25 @@ const getList = async () => {
 const loadOptions = async () => {
   const [projectRes, categoryRes] = await Promise.all([treeProject(), listCategoryTree()]);
   projectTree.value = projectRes.data || [];
-  categoryTree.value = (categoryRes.data || []).map((n: any) => ({
-    ...n,
-    disabled: (n.children?.length || 0) > 0
-  }));
+  categoryTree.value = transformCategoryTree(categoryRes.data || []);
+};
+
+/**
+ * 转换分类树：
+ * 1. 有子节点的一级分类本身可选（value 加 PARENT: 前缀）
+ * 2. 在每个一级分类下第一个子节点放它自己，使展开后也能选到自身
+ */
+const transformCategoryTree = (nodes: any[]): any[] => {
+  return nodes.map((n) => {
+    const hasChildren = (n.children?.length || 0) > 0;
+    const selfNode = { value: n.value, label: n.value, children: [] };
+    const children = hasChildren ? [selfNode, ...(n.children || [])] : [];
+    return {
+      ...n,
+      value: hasChildren ? `PARENT:${n.value}` : n.value,
+      children: children.length > 0 ? transformCategoryTree(children) : []
+    };
+  });
 };
 
 /** 从项目树中递归查找项目名称 */
@@ -561,9 +595,9 @@ const buildPayload = () => {
   return data;
 };
 
-/** 是否可编辑：只有草稿状态可编辑 */
+/** 是否可编辑：草稿、已退回、已撤销状态可编辑 */
 const isEditable = (status?: string) => {
-  return status === 'draft';
+  return status === 'draft' || status === 'back' || status === 'cancel';
 };
 
 /** 是否可提交 */
@@ -649,13 +683,12 @@ const openItemDialog = (index?: number) => {
     itemForm.value = emptyItem();
     editingItemIndex.value = undefined;
     itemDialog.title = '添加明细';
-    categorySelected.value = '';
   } else {
     itemForm.value = { ...form.value.items[index] };
     editingItemIndex.value = index;
     itemDialog.title = '编辑明细';
-    categorySelected.value = itemForm.value.category2 || itemForm.value.category1 || '';
   }
+  categorySelected.value = itemForm.value.category2 || itemForm.value.category1 || '';
   itemDialog.visible = true;
 };
 
@@ -666,6 +699,14 @@ const onCategoryChange = (val: string) => {
     itemForm.value.category2 = '';
     return;
   }
+  // 直接选中父节点：一级/二级都填父节点本身
+  if (val.startsWith('PARENT:')) {
+    const name = val.substring(7);
+    itemForm.value.category1 = name;
+    itemForm.value.category2 = name;
+    return;
+  }
+  // 在树中查找 val 对应的节点及其父节点
   const find = (nodes: any[], parent?: any): any => {
     for (const n of nodes) {
       if (n.value === val) return { node: n, parent };
@@ -677,14 +718,10 @@ const onCategoryChange = (val: string) => {
     return null;
   };
   const r = find(categoryTree.value);
-  if (r) {
-    if (r.parent) {
-      itemForm.value.category1 = r.parent.value;
-      itemForm.value.category2 = r.node.value;
-    } else {
-      itemForm.value.category1 = r.node.value;
-      itemForm.value.category2 = '';
-    }
+  if (r && r.parent) {
+    const parentValue = r.parent.value.startsWith('PARENT:') ? r.parent.value.substring(7) : r.parent.value;
+    itemForm.value.category1 = parentValue;
+    itemForm.value.category2 = r.node.value;
   }
 };
 

@@ -19,6 +19,8 @@ export interface RequestItemVO {
   quantity: number;
   unitPrice: number;
   amount: number;
+  materialUsage: string;
+  purchaseReason: string;
   link: string;
   sortNo: number;
   remark: string;
@@ -63,6 +65,8 @@ export interface RequestItemForm {
   quantity: number | undefined;
   unitPrice: number | undefined;
   amount: number | undefined;
+  materialUsage: string;
+  purchaseReason: string;
   link: string;
   sortNo: number | undefined;
   remark: string;

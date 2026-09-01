@@ -4,12 +4,13 @@
       <div class="hero-copy">
         <h1>OA 协同办公系统</h1>
         <p>
-          多租户中后台管理平台，深度集成采购流程管理（PMS）与 AI 智能能力：项目编码自动生成、分类树形选择、
-          采购申请自动命名与 Excel 导出，配合工作流审批与 AI 助手，让采购与办公高效协同。
+          面向科研与办公场景的数字化协同平台。深度集成采购全生命周期管理（PMS）：多级项目树、自动编码、
+          科研/非科研分类树形选择、申请标题自动拼接、Excel 按标题导出；采购申请、验收、入库、领用全流程走 Warm-Flow 审批；
+          发票 AI 识别自动匹配订单商品；PRIME AI 提供智能对话与文档处理能力。让采购、仓库与办公真正高效协同。
         </p>
         <div class="hero-actions">
           <el-button type="primary" @click="go('/procurement/request')">进入采购申请</el-button>
-          <el-button plain @click="go('/aichat')">打开 AI 助手</el-button>
+          <el-button plain @click="goPrimeAi">打开 PRIME AI</el-button>
         </div>
       </div>
     </section>
@@ -34,7 +35,7 @@
               <el-tag v-for="tag in product.tags" :key="tag" effect="plain">{{ tag }}</el-tag>
             </div>
             <div class="product-actions">
-              <el-button type="primary" plain @click="go(product.route)">
+              <el-button type="primary" plain @click="handleProductClick(product.route)">
                 {{ product.actionLabel }}
               </el-button>
             </div>
@@ -63,8 +64,37 @@
 
 <script setup name="Index" lang="ts">
 import { useRouter } from 'vue-router';
+import { usePermissionStore } from '@/store/modules/permission';
+import type { RouteRecordRaw } from 'vue-router';
 
 const router = useRouter();
+const permissionStore = usePermissionStore();
+
+// 动态查找 PRIME AI 外链路由（避免硬编码 IP/端口）
+// PRIME AI 是顶层外链菜单，父路由 path 为 '/'，真正的 iframe 子路由 path 为 '172/16/16/110/3305'
+const findPrimeAiPath = (routes: RouteRecordRaw[], parentPath = ''): string | undefined => {
+  for (const r of routes) {
+    const path = r.path ?? '';
+    const fullPath = path.startsWith('/') ? path : `${parentPath}/${path}`.replace(/\/+/g, '/');
+    if ((r.meta?.title === 'PRIME AI' || r.meta?.link?.includes('3305')) && r.meta?.link) {
+      return fullPath;
+    }
+    if (r.children) {
+      const found = findPrimeAiPath(r.children, fullPath);
+      if (found) return found;
+    }
+  }
+  return undefined;
+};
+
+const goPrimeAi = () => {
+  const path = findPrimeAiPath(permissionStore.sidebarRouters);
+  if (path) {
+    router.push(path);
+  } else {
+    router.push('/aichat');
+  }
+};
 
 const products = [
   {
@@ -76,12 +106,12 @@ const products = [
     route: '/procurement/request'
   },
   {
-    name: 'AI 智能助手',
+    name: 'PRIME AI',
     badge: 'AI',
-    summary: '内置 AI 对话助手，探索智能识别、审核与办公辅助能力。',
-    tags: ['AI 对话', '智能辅助'],
-    actionLabel: '打开助手',
-    route: '/aichat'
+    summary: '一站式 AI 能力入口，集成智能对话、发票识别、文档处理与办公辅助。',
+    tags: ['智能对话', '发票识别', 'AI 辅助'],
+    actionLabel: '打开 PRIME AI',
+    route: '__prime_ai__'
   },
   {
     name: '工作流审批',
@@ -108,21 +138,40 @@ const capabilityGroups = [
       '项目与申请编码自动生成',
       '多级项目树形结构',
       '科研/非科研分类树形选择',
-      '申请标题自动拼接、Excel 按标题命名'
+      '申请标题自动拼接、Excel 按标题命名',
+      '采购申请→审批→验收→入库→领用全流程闭环'
     ]
   },
   {
     title: 'AI 能力',
-    items: ['AI 对话助手', '智能识别与审核接入']
+    items: [
+      'PRIME AI 智能对话入口',
+      '发票 PDF AI 识别与订单商品自动匹配',
+      '冲红发票字段识别与提示',
+      '多页发票处理与校验'
+    ]
   },
   {
     title: '平台能力',
-    items: ['多租户与数据权限', '动态菜单与按钮权限', '代码生成器', '日志与在线监控']
+    items: [
+      '基于 Warm-Flow 的可视化审批流',
+      '动态菜单与按钮级权限控制',
+      '手机端专属验收页面',
+      '代码生成器、日志与在线监控'
+    ]
   }
 ];
 
 const go = (route: string) => {
   router.push(route);
+};
+
+const handleProductClick = (route: string) => {
+  if (route === '__prime_ai__') {
+    goPrimeAi();
+  } else {
+    go(route);
+  }
 };
 </script>
 

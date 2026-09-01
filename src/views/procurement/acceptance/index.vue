@@ -236,8 +236,7 @@
 import { listAcceptance, getAcceptance, delAcceptance, addAcceptance, updateAcceptance, exportAcceptance, acceptableRequestList, submitAcceptance, aiInvoiceMatch } from '@/api/procurement/acceptance';
 import { AcceptanceForm, AcceptanceQuery, AcceptanceItemForm, AcceptanceVO } from '@/api/procurement/acceptance/types';
 import { getRequest } from '@/api/procurement/request';
-import { listProject } from '@/api/procurement/project';
-import request from '@/utils/request';
+import { treeProject } from '@/api/procurement/project';
 import { UploadUserFile } from 'element-plus';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
@@ -340,10 +339,10 @@ const getList = async () => {
 const loadOptions = async () => {
   const [requestRes, projectRes] = await Promise.all([
     acceptableRequestList(),
-    listProject({ pageNum: 1, pageSize: 1000 } as any)
+    treeProject()
   ]);
   requestOptions.value = requestRes.data || [];
-  projectOptions.value = projectRes.data.rows || [];
+  projectOptions.value = projectRes.data || [];
 };
 
 /** 选择采购申请：带出项目与验收明细行 */
@@ -379,20 +378,7 @@ const openAiMatch = () => {
   aiDialog.report = null;
 };
 
-/** 上传 PDF 到 OSS，返回 ossId（repeatSubmit:false 允许多张发票连续上传不被防重复拦截） */
-const uploadPdfToOss = async (file: File): Promise<string> => {
-  const fd = new FormData();
-  fd.append('file', file);
-  const res = await request({
-    url: '/resource/oss/upload',
-    method: 'post',
-    data: fd,
-    headers: { 'Content-Type': 'multipart/form-data', repeatSubmit: false }
-  });
-  return res.data.ossId;
-};
-
-/** 开始 AI 识别 + 匹配（支持多轮：只传尚未填发票金额的明细，已填的不重复处理） */
+/** 开始 AI 识别 + 匹配 + 持久化（支持多轮：只传尚未填发票金额的明细，已填的不重复处理） */
 const startAiMatch = async () => {
   const files = aiDialog.fileList.filter((f) => f.raw).map((f) => f.raw as File);
   if (files.length === 0) {
@@ -418,49 +404,38 @@ const startAiMatch = async () => {
   aiDialog.loading = true;
   aiDialog.report = null;
   try {
-    const res = await aiInvoiceMatch(items, files);
+    const res = await aiInvoiceMatch(items, files, form.value.id);
     const data = res.data || res;
     const results: any[] = data.results || [];
-    // 匹配成功的：填发票单价（不含税口径）+ 上传 PDF 到 OSS 回填 invoiceUrl
-    // 按 originalName 找原始文件（不依赖 results/files 顺序，并发返回也可能乱序）
-    const fileByName = new Map(files.map((f: File) => [f.name, f]));
     for (let idx = 0; idx < results.length; idx++) {
       const r = results[idx];
-      if (r.matchStatus !== 'matched' || !r.matchedItemIds || r.matchedItemIds.length === 0) continue;
-      const matchedIds = new Set(r.matchedItemIds.map(String));
-      const unitPrices: Record<string, number> = r.matchedUnitPrices || {};
-      const checks: Record<string, string> = {};
-      (r.amountCheck?.items || []).forEach((c: any) => { checks[String(c.itemId)] = c.status; });
-      const targetRows = (form.value.items || []).filter((it: AcceptanceItemForm) =>
-        matchedIds.has(String(it.sourceItemId ?? it.id))
-      );
-      if (targetRows.length === 0) continue;
+      // 后端已做 OSS 上传并持久化发票台账；前端直接用返回的 ossId 回填 invoiceUrl
+      const ossId = r.ossId || '';
       const isRed = !!r.extracted?.is_red_invoice;
-      // 按 originalName 匹配原始文件，上传 OSS 作为附件
-      const rawFile = fileByName.get(r.originalName);
-      let ossId = '';
-      if (rawFile) {
-        try {
-          ossId = await uploadPdfToOss(rawFile);
-        } catch (e) {
-          proxy?.$modal.msgWarning('发票附件上传失败，请手动上传：' + r.originalName);
+
+      if (r.matchStatus === 'matched' && r.matchedItemIds && r.matchedItemIds.length > 0) {
+        const matchedIds = new Set(r.matchedItemIds.map(String));
+        const unitPrices: Record<string, number> = r.matchedUnitPrices || {};
+        const checks: Record<string, string> = {};
+        (r.amountCheck?.items || []).forEach((c: any) => { checks[String(c.itemId)] = c.status; });
+        const targetRows = (form.value.items || []).filter((it: AcceptanceItemForm) =>
+          matchedIds.has(String(it.sourceItemId ?? it.id))
+        );
+        for (const row of targetRows) {
+          const rowId = String(row.sourceItemId ?? row.id);
+          const unitPrice = unitPrices[rowId];
+          if (unitPrice !== undefined && unitPrice !== null) {
+            row.invoicePrice = Number(unitPrice);
+          }
+          if (ossId) row.invoiceUrl = ossId;
+          if (isRed) {
+            row.priceCheck = 'red';
+          } else {
+            const st = checks[rowId];
+            row.priceCheck = st === 'amount_exceed' ? 'over' : 'pass';
+          }
+          row.result = row.priceCheck;
         }
-      }
-      for (const row of targetRows) {
-        const rowId = String(row.sourceItemId ?? row.id);
-        const unitPrice = unitPrices[rowId];
-        if (unitPrice !== undefined && unitPrice !== null) {
-          row.invoicePrice = Number(unitPrice);
-        }
-        if (ossId) row.invoiceUrl = ossId;
-        if (isRed) {
-          row.priceCheck = 'red';
-        } else {
-          // 逐商品核对：单价超标才标 over，其余 pass
-          const st = checks[rowId];
-          row.priceCheck = st === 'amount_exceed' ? 'over' : 'pass';
-        }
-        row.result = row.priceCheck;
       }
     }
     aiDialog.report = { lines: data.summary?.lines || [] };
