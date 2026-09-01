@@ -561,9 +561,9 @@ const buildPayload = () => {
   return data;
 };
 
-/** 是否可编辑 */
+/** 是否可编辑：只有草稿状态可编辑 */
 const isEditable = (status?: string) => {
-  return !status || status === 'draft' || status === 'back' || status === 'cancel';
+  return status === 'draft';
 };
 
 /** 是否可提交 */
