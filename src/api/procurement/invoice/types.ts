@@ -14,8 +14,12 @@ export interface ProcurementInvoiceVO {
   validFlag?: number;
   invalidReason?: string;
   acceptanceId?: string | number;
+  acceptanceCode?: string;
   requestId?: string | number;
+  requestTitle?: string;
   projectId?: string | number;
+  projectName?: string;
+  matchedItems?: string;
   pdfUrl?: string;
   pdfOssId?: string;
   ocrJson?: string;

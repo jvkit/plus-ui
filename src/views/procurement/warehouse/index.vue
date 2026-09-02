@@ -55,7 +55,23 @@
           </template>
         </el-table-column>
         <el-table-column label="项目" align="center" prop="projectName" :show-overflow-tooltip="true" />
-        <el-table-column label="入库日期" align="center" prop="inboundDate" width="110" />
+        <el-table-column label="入库日期" align="center" prop="inboundDate" width="110">
+          <template #default="scope">
+            <span>{{ scope.row.inboundDate ? proxy.parseTime(scope.row.inboundDate, '{y}-{m}-{d}') : '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="验收图片" align="center" prop="photoUrl" width="100">
+          <template #default="scope">
+            <el-image
+              v-if="scope.row.photoUrl"
+              :src="scope.row.photoUrl"
+              :preview-src-list="[scope.row.photoUrl]"
+              fit="cover"
+              style="width: 60px; height: 60px; border-radius: 4px; cursor: pointer"
+            />
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column label="备注" align="center" prop="remark" :show-overflow-tooltip="true" />
         <el-table-column label="操作" align="center" width="140" class-name="small-padding fixed-width">
           <template #default="scope">
@@ -134,6 +150,7 @@
 import { listWarehouse, getWarehouse, delWarehouse, addWarehouse, updateWarehouse, exportWarehouse } from '@/api/procurement/warehouse';
 import { WarehouseForm, WarehouseQuery, WarehouseVO } from '@/api/procurement/warehouse/types';
 import { treeProject } from '@/api/procurement/project';
+import { listByIds } from '@/api/system/oss';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 
@@ -192,9 +209,33 @@ const { queryParams, form, rules } = toRefs(data);
 const getList = async () => {
   loading.value = true;
   const res = await listWarehouse(queryParams.value);
-  warehouseList.value = res.data.rows;
+  const rows = res.data.rows || [];
+  await fillPhotoUrls(rows);
+  warehouseList.value = rows;
   total.value = res.data.total;
   loading.value = false;
+};
+
+/** 批量将 photoUrl（OSS ID）解析为真实 URL */
+const fillPhotoUrls = async (rows: WarehouseVO[]) => {
+  const ossIds = rows
+    .map((row) => row.photoUrl)
+    .filter((id): id is string => !!id && id.length <= 32);
+  if (ossIds.length === 0) {
+    return;
+  }
+  try {
+    const ossRes = await listByIds(ossIds.join(','));
+    const urlMap = new Map((ossRes.data || []).map((item: any) => [String(item.ossId), item.url]));
+    rows.forEach((row) => {
+      if (row.photoUrl && urlMap.has(row.photoUrl)) {
+        row.photoUrl = urlMap.get(row.photoUrl);
+      }
+    });
+  } catch (e) {
+    // 解析失败时不阻断列表展示
+    console.error('解析验收图片失败', e);
+  }
 };
 
 /** 加载项目树（普通用户无 project:list 权限，统一走 tree 接口并展平） */

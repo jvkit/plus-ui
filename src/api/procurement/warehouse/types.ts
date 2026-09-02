@@ -9,6 +9,7 @@ export interface WarehouseVO extends BaseEntity {
   projectId: number | string;
   projectName: string; // 项目名称（后端带出）
   inboundDate: string; // 入库日期
+  photoUrl?: string; // 验收图片 OSS ID（后端带回显）
   remark: string;
 }
 

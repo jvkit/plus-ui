@@ -13,6 +13,11 @@
             <el-form-item label="购买方" prop="buyerName">
               <el-input v-model="queryParams.buyerName" placeholder="请输入购买方名称" clearable @keyup.enter="handleQuery" />
             </el-form-item>
+            <el-form-item label="项目" prop="projectId">
+              <el-select v-model="queryParams.projectId" placeholder="请选择项目" clearable filterable style="width: 180px">
+                <el-option v-for="item in projectOptions" :key="item.id" :label="item.projectName" :value="item.id" />
+              </el-select>
+            </el-form-item>
             <el-form-item label="发票类型" prop="invoiceType">
               <el-select v-model="queryParams.invoiceType" placeholder="发票类型" clearable style="width: 140px">
                 <el-option label="增值税专用发票" value="增值税专用发票" />
@@ -50,13 +55,16 @@
       <el-table v-loading="loading" border :data="invoiceList" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
         <el-table-column v-if="false" label="主键" align="center" prop="id" />
-        <el-table-column label="发票代码" align="center" prop="invoiceCode" :show-overflow-tooltip="true" />
         <el-table-column label="发票号码" align="center" prop="invoiceNumber" :show-overflow-tooltip="true" />
         <el-table-column label="发票类型" align="center" prop="invoiceType" :show-overflow-tooltip="true" />
         <el-table-column label="不含税金额" align="center" prop="amount" />
         <el-table-column label="税额" align="center" prop="taxAmount" />
         <el-table-column label="价税合计" align="center" prop="totalAmount" />
-        <el-table-column label="开票日期" align="center" prop="invoiceDate" width="120" />
+        <el-table-column label="开票日期" align="center" prop="invoiceDate" width="120">
+          <template #default="scope">
+            <span>{{ scope.row.invoiceDate ? proxy.parseTime(scope.row.invoiceDate, '{y}-{m}-{d}') : '-' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="销售方" align="center" prop="sellerName" :show-overflow-tooltip="true" />
         <el-table-column label="购买方" align="center" prop="buyerName" :show-overflow-tooltip="true" />
         <el-table-column label="是否冲红" align="center" prop="redFlag" width="90">
@@ -69,10 +77,11 @@
             <el-tag :type="scope.row.validFlag === 1 ? 'success' : 'danger'">{{ scope.row.validFlag === 1 ? '有效' : '无效' }}</el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="商品名称" align="center" prop="matchedItems" :show-overflow-tooltip="true" width="160" />
+        <el-table-column label="关联验收单" align="center" prop="acceptanceCode" width="140" :show-overflow-tooltip="true" />
+        <el-table-column label="关联申请" align="center" prop="requestTitle" width="160" :show-overflow-tooltip="true" />
+        <el-table-column label="项目归属" align="center" prop="projectName" width="160" :show-overflow-tooltip="true" />
         <el-table-column label="无效原因" align="center" prop="invalidReason" :show-overflow-tooltip="true" width="160" />
-        <el-table-column label="关联验收单" align="center" prop="acceptanceId" width="120" />
-        <el-table-column label="关联申请" align="center" prop="requestId" width="120" />
-        <el-table-column label="关联项目" align="center" prop="projectId" width="120" />
         <el-table-column label="PDF" align="center" width="100">
           <template #default="scope">
             <el-button v-if="scope.row.pdfUrl || scope.row.pdfOssId" link type="primary" icon="View" @click="previewPdf(scope.row)">查看</el-button>
@@ -105,6 +114,7 @@
 <script setup name="ProcurementInvoice" lang="ts">
 import { listProcurementInvoice, delProcurementInvoice } from '@/api/procurement/invoice';
 import { ProcurementInvoiceQuery, ProcurementInvoiceVO } from '@/api/procurement/invoice/types';
+import { treeProject } from '@/api/procurement/project';
 import request from '@/utils/request';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
@@ -116,6 +126,7 @@ const ids = ref<Array<number | string>>([]);
 const single = ref(true);
 const multiple = ref(true);
 const total = ref(0);
+const projectOptions = ref<any[]>([]);
 
 const pdfDialog = reactive({
   visible: false,
@@ -131,7 +142,7 @@ const initQueryParams: ProcurementInvoiceQuery = {
   sellerName: '',
   buyerName: '',
   invoiceType: '',
-  validFlag: 1  // 默认只显示有效发票
+  validFlag: undefined as unknown as number // 默认不筛选，全部显示（含无效发票）
 };
 
 const data = reactive<PageData<any, ProcurementInvoiceQuery>>({
@@ -146,9 +157,27 @@ const { queryParams, form, rules } = toRefs(data);
 const getList = async () => {
   loading.value = true;
   const res = await listProcurementInvoice(queryParams.value);
-  invoiceList.value = res.rows;
-  total.value = res.total;
+  // 后端返回 R<PageResult>：{ code, data: { rows, total } }
+  invoiceList.value = res.data?.rows ?? [];
+  total.value = res.data?.total ?? 0;
   loading.value = false;
+};
+
+/** 加载项目树（普通用户无 project:list 权限，统一走 tree 接口并展平） */
+const flattenTree = (nodes: any[]): any[] => {
+  const out: any[] = [];
+  const walk = (list: any[]) => {
+    for (const n of list || []) {
+      out.push(n);
+      walk(n.children || []);
+    }
+  };
+  walk(nodes);
+  return out;
+};
+const loadOptions = async () => {
+  const projectRes = await treeProject();
+  projectOptions.value = flattenTree(projectRes.data || []);
 };
 
 /** PDF 预览：优先用 pdfUrl，否则用 pdfOssId 调接口取 URL */
@@ -199,5 +228,6 @@ const handleDelete = async (row?: ProcurementInvoiceVO) => {
 
 onMounted(() => {
   getList();
+  loadOptions();
 });
 </script>
