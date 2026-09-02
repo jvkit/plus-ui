@@ -70,12 +70,12 @@
                 <span class="required">*</span>
                 实物拍照
               </div>
-              <van-uploader v-model="row.photoFileList" :max-count="3" :after-read="(file) => afterRead(file, row, 'photo')" @delete="(file) => onDelete(file, row, 'photo')" />
+              <van-uploader v-model="row.photoFileList" :max-count="3" :after-read="(file) => afterRead(file, row, 'photo')" @delete="(file) => onDelete(file, row, 'photo')" @click-upload="(file) => onFileClick(file, row, 'photo')" />
             </div>
 
             <div class="uploader-row">
               <div class="uploader-label">发票照片</div>
-              <van-uploader v-model="row.invoiceFileList" :max-count="3" :after-read="(file) => afterRead(file, row, 'invoice')" @delete="(file) => onDelete(file, row, 'invoice')" />
+              <van-uploader v-model="row.invoiceFileList" :max-count="3" :after-read="(file) => afterRead(file, row, 'invoice')" @delete="(file) => onDelete(file, row, 'invoice')" @click-upload="(file) => onFileClick(file, row, 'invoice')" />
             </div>
 
             <van-field v-model="row.remark" label="备注" type="textarea" rows="1" autosize placeholder="选填" maxlength="200" show-word-limit />
@@ -332,7 +332,12 @@ const resetDetail = () => {
 
 const afterRead = async (file: any, row: any, type: 'photo' | 'invoice') => {
   const f = file.file;
-  showLoadingToast({ message: '上传中...', forbidClick: true, duration: 0 });
+  if (!f) {
+    showFailToast('未获取到照片，请重试');
+    return;
+  }
+  file.status = 'uploading';
+  file.message = '上传中';
   try {
     const res = await uploadApi(f);
     const { ossId, url } = res.data || {};
@@ -344,14 +349,21 @@ const afterRead = async (file: any, row: any, type: 'photo' | 'invoice') => {
     // 让 uploader 能预览
     file.url = url;
     file.ossId = ossId;
+    file.status = 'done';
+    file.message = '';
     showSuccessToast('上传成功');
   } catch (e) {
-    showFailToast('上传失败');
-    // 移除失败文件
-    const listKey = type === 'photo' ? 'photoFileList' : 'invoiceFileList';
-    row[listKey] = row[listKey].filter((x: any) => x.url || x.file !== f);
-  } finally {
-    closeToast();
+    // 保留失败文件供点击重试（上传失败常见于首次触发相机权限被挂起）
+    file.status = 'failed';
+    file.message = '上传失败，点击重试';
+    showFailToast('上传失败，点击图片重试');
+  }
+};
+
+/** 点击失败状态的文件重试上传 */
+const onFileClick = (file: any, row: any, type: 'photo' | 'invoice') => {
+  if (file?.status === 'failed') {
+    afterRead(file, row, type);
   }
 };
 

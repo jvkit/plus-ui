@@ -133,7 +133,7 @@
 <script setup name="ProcurementWarehouse" lang="ts">
 import { listWarehouse, getWarehouse, delWarehouse, addWarehouse, updateWarehouse, exportWarehouse } from '@/api/procurement/warehouse';
 import { WarehouseForm, WarehouseQuery, WarehouseVO } from '@/api/procurement/warehouse/types';
-import { listProject } from '@/api/procurement/project';
+import { treeProject } from '@/api/procurement/project';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 
@@ -197,10 +197,21 @@ const getList = async () => {
   loading.value = false;
 };
 
-/** 加载项目列表 */
+/** 加载项目树（普通用户无 project:list 权限，统一走 tree 接口并展平） */
+const flattenTree = (nodes: any[]): any[] => {
+  const out: any[] = [];
+  const walk = (list: any[]) => {
+    for (const n of list || []) {
+      out.push(n);
+      walk(n.children || []);
+    }
+  };
+  walk(nodes);
+  return out;
+};
 const loadOptions = async () => {
-  const projectRes = await listProject({ pageNum: 1, pageSize: 1000 } as any);
-  projectOptions.value = projectRes.data.rows || [];
+  const projectRes = await treeProject();
+  projectOptions.value = flattenTree(projectRes.data || []);
 };
 
 /** 取消按钮 */

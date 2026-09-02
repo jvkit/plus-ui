@@ -195,6 +195,9 @@
       <el-alert type="info" :closable="false" show-icon class="mb-2">
         <template #title>上传多张发票 PDF（可一次多张，也可分多轮补充）。系统自动识别票面字段并按商品名匹配，匹配成功的自动填「发票金额(不含税)」并保存发票附件；冲红票会标记「冲红」；不相干的发票不会自动上传。</template>
       </el-alert>
+      <el-alert v-if="missingInvoiceCount > 0" type="warning" :closable="false" show-icon class="mb-2">
+        <template #title>补齐材料：当前还有 {{ missingInvoiceCount }} 个商品缺少发票。本轮只需拖入缺口发票，已识别的不会重复处理。</template>
+      </el-alert>
       <div class="mb-2">
         <el-upload
           ref="aiUploadRef"
@@ -209,13 +212,23 @@
           <el-icon class="el-icon--upload"><upload-filled /></el-icon>
           <div class="el-upload__text">将发票 PDF 拖到此处，或<em>点击选择</em></div>
           <template #tip>
-            <div class="el-upload__tip">仅支持 PDF，可一次多张</div>
+            <div class="el-upload__tip">仅支持 PDF，可一次多张；每轮识别后队列自动清空</div>
           </template>
         </el-upload>
       </div>
 
+      <div v-if="aiRounds.length > 0" class="ai-rounds mb-2">
+        <div class="ai-report-title">历史识别记录（共 {{ aiRounds.length }} 轮）</div>
+        <el-collapse>
+          <el-collapse-item v-for="(r, i) in aiRounds" :key="r.round" :name="r.round" :title="`第 ${r.round} 轮 · ${r.time} · ${r.files.length} 个文件`">
+            <div v-for="(line, li) in r.lines" :key="li" class="ai-round-line"
+              :class="line.includes('✅') ? 'line-success' : (line.includes('❌') ? 'line-error' : 'line-warning')">{{ line }}</div>
+          </el-collapse-item>
+        </el-collapse>
+      </div>
+
       <div v-if="aiDialog.report && aiDialog.report.lines" class="ai-report">
-        <div class="ai-report-title">识别结果</div>
+        <div class="ai-report-title">本轮识别结果</div>
         <el-alert v-for="(line, i) in aiDialog.report.lines" :key="i" :closable="false" show-icon class="mb-1"
           :type="line.includes('✅') ? 'success' : (line.includes('❌') ? 'error' : 'warning')">
           <template #title>{{ line }}</template>
@@ -224,7 +237,9 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button type="primary" :loading="aiDialog.loading" @click="startAiMatch">开始识别</el-button>
+          <el-button type="primary" :loading="aiDialog.loading" @click="startAiMatch">
+            {{ missingInvoiceCount > 0 ? '开始识别（补齐材料）' : '开始识别' }}
+          </el-button>
           <el-button @click="aiDialog.visible = false; aiDialog.fileList = []; aiDialog.report = null">关 闭</el-button>
         </div>
       </template>
@@ -304,6 +319,7 @@ const initFormData: AcceptanceForm = {
   acceptanceDate: '',
   status: 'pending',
   remark: '',
+  aiDetail: '',
   items: []
 };
 
@@ -374,9 +390,31 @@ const openAiMatch = () => {
     return;
   }
   aiDialog.visible = true;
+  // 每次打开都清空文件队列，避免上一轮残留文件被重复识别
   aiDialog.fileList = [];
-  aiDialog.report = null;
+  // 有历史轮次时先展示最新一轮
+  const rounds = parseAiRounds(form.value.aiDetail);
+  aiDialog.report = rounds.length > 0 ? { lines: rounds[rounds.length - 1].lines || [] } : null;
 };
+
+/** 解析验收单 aiDetail（JSON 数组）为轮次列表 */
+const parseAiRounds = (detail?: string): any[] => {
+  if (!detail) return [];
+  try {
+    const arr = JSON.parse(detail);
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+};
+
+/** 缺口明细数（未填发票金额的行数） */
+const missingInvoiceCount = computed(() =>
+  (form.value.items || []).filter((it: AcceptanceItemForm) => it.invoicePrice === undefined || it.invoicePrice === null).length
+);
+
+/** AI 轮次列表（倒序，最新在前） */
+const aiRounds = computed(() => parseAiRounds(form.value.aiDetail).slice().reverse());
 
 /** 开始 AI 识别 + 匹配 + 持久化（支持多轮：只传尚未填发票金额的明细，已填的不重复处理） */
 const startAiMatch = async () => {
@@ -404,7 +442,7 @@ const startAiMatch = async () => {
   aiDialog.loading = true;
   aiDialog.report = null;
   try {
-    const res = await aiInvoiceMatch(items, files, form.value.id);
+    const res = await aiInvoiceMatch(items, files, form.value.id, form.value.requestId);
     const data = res.data || res;
     const results: any[] = data.results || [];
     for (let idx = 0; idx < results.length; idx++) {
@@ -439,6 +477,18 @@ const startAiMatch = async () => {
       }
     }
     aiDialog.report = { lines: data.summary?.lines || [] };
+    // 留痕：本轮识别结果追加进验收单 aiDetail，随表单保存持久化
+    const round = {
+      round: parseAiRounds(form.value.aiDetail).length + 1,
+      time: proxy?.parseTime(new Date()) || '',
+      files: files.map((f) => f.name),
+      lines: data.summary?.lines || []
+    };
+    const rounds = parseAiRounds(form.value.aiDetail);
+    rounds.push(round);
+    form.value.aiDetail = JSON.stringify(rounds);
+    // 识别成功后清空本轮文件队列，下一轮只装新拖入的补齐文件
+    aiDialog.fileList = [];
     proxy?.$modal.msgSuccess(`识别完成：匹配 ${data.summary?.matchedInvoiceCount ?? 0} 张发票`);
   } catch (e: any) {
     proxy?.$modal.msgError('AI 识别失败：' + (e?.message || '请稍后重试'));
@@ -620,6 +670,19 @@ onActivated(() => {
 .ai-report-title {
   font-weight: 600;
   margin-bottom: 6px;
+}
+.ai-round-line {
+  padding: 2px 0;
+  font-size: 13px;
+}
+.line-success {
+  color: var(--el-color-success);
+}
+.line-error {
+  color: var(--el-color-danger);
+}
+.line-warning {
+  color: var(--el-color-warning);
 }
 .mb-2 {
   margin-bottom: 12px;

@@ -74,11 +74,15 @@ export function acceptableRequestList(): AxiosPromise<any[]> {
 
 // 发票批量识别 + 匹配 + 持久化（调用 agents 智能体服务）
 // acceptanceId: 验收单 ID（编辑草稿时传入，新增可为空）
+// requestId: 关联采购申请 ID（新增草稿未落库时补台账关联）
 // items: 验收明细数组（itemName/spec/applyPrice/quantity/id），files: 发票 PDF 数组
-export function aiInvoiceMatch(items: any[], files: File[], acceptanceId?: string | number): AxiosPromise<any> {
+export function aiInvoiceMatch(items: any[], files: File[], acceptanceId?: string | number, requestId?: string | number): AxiosPromise<any> {
   const formData = new FormData();
   if (acceptanceId !== undefined && acceptanceId !== null && acceptanceId !== '') {
     formData.append('acceptanceId', String(acceptanceId));
+  }
+  if (requestId !== undefined && requestId !== null && requestId !== '') {
+    formData.append('requestId', String(requestId));
   }
   formData.append('items', JSON.stringify(items));
   files.forEach((f) => formData.append('files', f));

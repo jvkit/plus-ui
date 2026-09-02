@@ -44,6 +44,7 @@ export interface AcceptanceVO extends BaseEntity {
   processInstanceId: number | string; // 流程实例ID
   currentApprover: string; // 当前审批人（流程动态）
   remark: string;
+  aiDetail: string; // AI 发票识别留痕（JSON 数组，按轮次追加）
   items: AcceptanceItemVO[];
 }
 
@@ -57,6 +58,7 @@ export interface AcceptanceForm {
   acceptanceDate: string;
   status: string;
   remark: string;
+  aiDetail: string; // AI 发票识别留痕（JSON 数组，按轮次追加）
   items: AcceptanceItemForm[];
 }
 
