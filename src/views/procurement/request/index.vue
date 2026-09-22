@@ -32,6 +32,11 @@
                 <el-option label="已终止" value="termination" />
               </el-select>
             </el-form-item>
+            <el-form-item label="资金状态" prop="fundStatus">
+              <el-select v-model="queryParams.fundStatus" placeholder="资金状态" clearable style="width: 150px">
+                <el-option v-for="dict in pms_fund_status" :key="dict.value" :label="dict.label" :value="dict.value" />
+              </el-select>
+            </el-form-item>
             <el-form-item>
               <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
               <el-button icon="Refresh" @click="resetQuery">重置</el-button>
@@ -77,6 +82,12 @@
         <el-table-column label="状态" align="center" prop="status" width="90">
           <template #default="scope">
             <dict-tag :options="statusOptions" :value="scope.row.status" />
+          </template>
+        </el-table-column>
+        <el-table-column label="资金状态" align="center" prop="fundStatus" width="120">
+          <template #default="scope">
+            <dict-tag v-if="scope.row.fundStatus" :options="pms_fund_status" :value="scope.row.fundStatus" />
+            <span v-else>-</span>
           </template>
         </el-table-column>
         <el-table-column label="验收标志" align="center" prop="acceptanceStatus" width="100">
@@ -384,8 +395,11 @@ import { listRequest, getRequest, delRequest, addRequest, updateRequest, submitR
 import { RequestForm, RequestQuery, RequestVO, RequestItemForm } from '@/api/procurement/request/types';
 import { treeProject } from '@/api/procurement/project';
 import { ProjectVO } from '@/api/procurement/project/types';
+import { useDict } from '@/utils/dict';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
+/** 资金状态字典（列展示 + 筛选用；未声明会导致 dict-tag 读 undefined.options 报错） */
+const { pms_fund_status } = toRefs<any>(useDict('pms_fund_status'));
 
 const requestList = ref<RequestVO[]>([]);
 const loading = ref(true);

@@ -1,9 +1,10 @@
 import request from '@/utils/request';
 import { RequestForm, RequestQuery, RequestVO } from './types';
+import type { PageResult } from '@/api/types';
 import type { AxiosPromise } from '@/utils/api-types';
 
 // 查询采购申请列表
-export function listRequest(query: RequestQuery): AxiosPromise<RequestVO[]> {
+export function listRequest(query: RequestQuery): AxiosPromise<PageResult<RequestVO>> {
   return request({
     url: '/procurement/request/list',
     method: 'get',

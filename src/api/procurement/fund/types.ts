@@ -1,4 +1,6 @@
 // 资金流水类型定义
+import type { ReserveSummaryVO } from '@/api/procurement/reserve/types';
+
 export interface FundFlowVO {
   id: number | string;
   flowNo: string; // 流水编号
@@ -12,6 +14,9 @@ export interface FundFlowVO {
   occurDate: string; // 发生日期
   operatorId: number | string;
   operatorName: string; // 审批人
+  titleType: string; // 采购方式（自购/对公）
+  applicantId: number | string;
+  applicantName: string; // 申请人快照（=谁的钱）
   remark: string;
   createTime: string;
   updateTime: string;
@@ -21,6 +26,8 @@ export interface FundFlowQuery extends PageQuery {
   projectId: number | string | undefined;
   flowType: string | undefined;
   requestTitle: string | undefined; // 关键字：标题/编号
+  titleType?: string; // 采购方式（自购/对公）
+  applicantName?: string; // 申请人（模糊）
   params?: Record<string, any>;
 }
 
@@ -42,4 +49,22 @@ export interface FundSummaryVO {
   monthOut: number;
   monthOutCount: number;
   projects: FundProjectSummaryVO[];
+  /** 备用金账本（总额度/已占用/可用/已回笼），后端可能暂未返回 */
+  reserve?: ReserveSummaryVO;
+}
+
+/** 资金状态看板：单个状态的笔数与金额合计 */
+export interface FundStatusBoardVO {
+  status: string;
+  label: string; // 中文状态名（后端给）
+  count: number;
+  amount: number;
+}
+
+/** 资金状态变更动作：标记已报销 / 确认已汇款 */
+export type FundStatusAction = 'reimburse' | 'paid';
+
+export interface FundStatusForm {
+  ids: Array<number | string>;
+  action: FundStatusAction;
 }

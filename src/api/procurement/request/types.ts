@@ -47,6 +47,15 @@ export interface RequestVO extends BaseEntity {
   invoiceInfo?: InvoiceInfo; // 开票信息（对公必填）
   remainingBudget?: number; // 项目剩余资金（后端带出，前端提示）
   status: string;
+  acceptanceStatus?: string; // 验收标志 none/processing/done
+  fundStatus?: string; // 资金状态（字典 pms_fund_status）
+  reimbursementCode?: string; // 关联报销包编号（可空）
+  reimburseDate?: string; // 报销标记时间
+  reimburseBy?: number | string;
+  reimburseByName?: string; // 报销标记人
+  paidDate?: string; // 汇款确认时间
+  paidBy?: number | string;
+  paidByName?: string; // 汇款确认人
   processInstanceId: number | string;
   remark: string;
   items: RequestItemVO[];
@@ -99,4 +108,7 @@ export interface RequestQuery extends PageQuery {
   projectId: number | string | undefined;
   status: string;
   purchaseType: string;
+  titleType?: string; // 采购方式（自购/对公，等值）
+  fundStatus?: string; // 资金状态（字典 pms_fund_status，等值）
+  applicantName?: string; // 申请人（模糊）
 }
