@@ -66,6 +66,7 @@
               v-if="scope.row.photoUrl"
               :src="scope.row.photoUrl"
               :preview-src-list="[scope.row.photoUrl]"
+              preview-teleported
               fit="cover"
               style="width: 60px; height: 60px; border-radius: 4px; cursor: pointer"
             />

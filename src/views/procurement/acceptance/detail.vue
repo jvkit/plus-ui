@@ -82,7 +82,7 @@
           </el-table-column>
           <el-table-column label="实物图片" align="center" width="100">
             <template #default="scope">
-              <el-image v-if="scope.row.photoUrl" :src="attachmentUrls[scope.row.photoUrl]" style="max-width: 60px; max-height: 60px" :preview-src-list="[attachmentUrls[scope.row.photoUrl]]" fit="contain" />
+              <el-image v-if="scope.row.photoUrl" :src="attachmentUrls[scope.row.photoUrl]" style="max-width: 60px; max-height: 60px" :preview-src-list="[attachmentUrls[scope.row.photoUrl]]" preview-teleported fit="contain" />
               <span v-else>-</span>
             </template>
           </el-table-column>

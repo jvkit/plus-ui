@@ -84,7 +84,7 @@
 
         <!-- 自购：付款截图 -->
         <el-form-item v-if="form.titleType === '自购' && form.paymentScreenshot" label="付款截图">
-          <el-image :src="attachmentUrls[form.paymentScreenshot]" style="max-width: 200px; max-height: 200px" :preview-src-list="[attachmentUrls[form.paymentScreenshot]]" fit="contain" />
+          <el-image :src="attachmentUrls[form.paymentScreenshot]" style="max-width: 200px; max-height: 200px" :preview-src-list="[attachmentUrls[form.paymentScreenshot]]" preview-teleported fit="contain" />
         </el-form-item>
 
         <!-- 对公：报价单 + 开票信息 -->
