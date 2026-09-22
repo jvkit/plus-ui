@@ -72,23 +72,9 @@
           <el-table-column label="申请单价" align="center" width="100">
             <template #default="scope"><span>{{ (Number(scope.row.applyPrice) || 0).toFixed(2) }}</span></template>
           </el-table-column>
-          <el-table-column label="发票金额" align="center" width="110">
-            <template #default="scope"><span>{{ (Number(scope.row.invoicePrice) || 0).toFixed(2) }}</span></template>
-          </el-table-column>
-          <el-table-column label="金额核对" align="center" width="90">
-            <template #default="scope">
-              <el-tag :type="scope.row.priceCheck === 'over' ? 'danger' : 'success'">{{ scope.row.priceCheck === 'over' ? '冲红' : '通过' }}</el-tag>
-            </template>
-          </el-table-column>
           <el-table-column label="实物图片" align="center" width="100">
             <template #default="scope">
               <el-image v-if="scope.row.photoUrl" :src="attachmentUrls[scope.row.photoUrl]" style="max-width: 60px; max-height: 60px" :preview-src-list="[attachmentUrls[scope.row.photoUrl]]" preview-teleported fit="contain" />
-              <span v-else>-</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="发票附件" align="center" width="100">
-            <template #default="scope">
-              <el-link v-if="scope.row.invoiceUrl" :href="attachmentUrls[scope.row.invoiceUrl]" target="_blank" type="primary">查看</el-link>
               <span v-else>-</span>
             </template>
           </el-table-column>
@@ -147,7 +133,6 @@ const loadAttachmentUrls = async () => {
   const ids: string[] = [];
   form.value.items?.forEach(item => {
     if (item.photoUrl) ids.push(String(item.photoUrl));
-    if (item.invoiceUrl) ids.push(String(item.invoiceUrl));
   });
   if (ids.length === 0) return;
   const res = await listByIds(ids.join(','));

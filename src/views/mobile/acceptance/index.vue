@@ -61,21 +61,12 @@
           <van-cell-group inset>
             <van-cell :title="row.itemName" :label="`${row.spec || '-'} / 申请单价 ¥${formatMoney(row.applyPrice)}`" />
 
-            <van-field label="发票金额" v-model="row.invoicePrice" type="number" placeholder="请输入发票金额" input-align="right">
-              <template #button>元</template>
-            </van-field>
-
             <div class="uploader-row">
               <div class="uploader-label">
                 <span class="required">*</span>
                 实物拍照
               </div>
               <van-uploader v-model="row.photoFileList" :max-count="3" :after-read="(file) => afterRead(file, row, 'photo')" @delete="(file) => onDelete(file, row, 'photo')" @click-upload="(file) => onFileClick(file, row, 'photo')" />
-            </div>
-
-            <div class="uploader-row">
-              <div class="uploader-label">发票照片</div>
-              <van-uploader v-model="row.invoiceFileList" :max-count="3" :after-read="(file) => afterRead(file, row, 'invoice')" @delete="(file) => onDelete(file, row, 'invoice')" @click-upload="(file) => onFileClick(file, row, 'invoice')" />
             </div>
 
             <van-field v-model="row.remark" label="备注" type="textarea" rows="1" autosize placeholder="选填" maxlength="200" show-word-limit />
@@ -109,7 +100,6 @@ import {
   showLoadingToast,
   showSuccessToast,
   showFailToast,
-  showConfirmDialog,
   closeToast
 } from 'vant';
 import request from '@/utils/request';
@@ -248,11 +238,8 @@ const selectRequest = async (row: any) => {
       itemName: it.itemName,
       spec: it.spec,
       applyPrice: Number(it.unitPrice) || 0,
-      invoicePrice: '',
       photoUrl: '',
-      invoiceUrl: '',
       photoFileList: [],
-      invoiceFileList: [],
       remark: ''
     }));
     view.value = 'detail';
@@ -286,7 +273,6 @@ const openAcceptance = async (row: any) => {
     const ossIds: string[] = [];
     (acc.items || []).forEach((it: any) => {
       if (it.photoUrl) ossIds.push(it.photoUrl);
-      if (it.invoiceUrl) ossIds.push(it.invoiceUrl);
     });
     const urlMap: Record<string, string> = {};
     if (ossIds.length > 0) {
@@ -306,11 +292,8 @@ const openAcceptance = async (row: any) => {
       itemName: it.itemName,
       spec: it.spec,
       applyPrice: Number(it.applyPrice) || 0,
-      invoicePrice: it.invoicePrice !== undefined && it.invoicePrice !== null ? String(it.invoicePrice) : '',
       photoUrl: it.photoUrl || '',
-      invoiceUrl: it.invoiceUrl || '',
       photoFileList: it.photoUrl ? [{ url: urlMap[it.photoUrl] || '', ossId: it.photoUrl }] : [],
-      invoiceFileList: it.invoiceUrl ? [{ url: urlMap[it.invoiceUrl] || '', ossId: it.invoiceUrl }] : [],
       remark: it.remark || ''
     }));
     view.value = 'detail';
@@ -330,7 +313,7 @@ const resetDetail = () => {
   items.value = [];
 };
 
-const afterRead = async (file: any, row: any, type: 'photo' | 'invoice') => {
+const afterRead = async (file: any, row: any, _type: 'photo') => {
   const f = file.file;
   if (!f) {
     showFailToast('未获取到照片，请重试');
@@ -341,11 +324,7 @@ const afterRead = async (file: any, row: any, type: 'photo' | 'invoice') => {
   try {
     const res = await uploadApi(f);
     const { ossId, url } = res.data || {};
-    if (type === 'photo') {
-      row.photoUrl = ossId;
-    } else {
-      row.invoiceUrl = ossId;
-    }
+    row.photoUrl = ossId;
     // 让 uploader 能预览
     file.url = url;
     file.ossId = ossId;
@@ -361,18 +340,14 @@ const afterRead = async (file: any, row: any, type: 'photo' | 'invoice') => {
 };
 
 /** 点击失败状态的文件重试上传 */
-const onFileClick = (file: any, row: any, type: 'photo' | 'invoice') => {
+const onFileClick = (file: any, row: any, type: 'photo') => {
   if (file?.status === 'failed') {
     afterRead(file, row, type);
   }
 };
 
-const onDelete = (file: any, row: any, type: 'photo' | 'invoice') => {
-  if (type === 'photo') {
-    row.photoUrl = '';
-  } else {
-    row.invoiceUrl = '';
-  }
+const onDelete = (file: any, row: any, _type: 'photo') => {
+  row.photoUrl = '';
 };
 
 const buildAcceptanceData = () => {
@@ -388,10 +363,7 @@ const buildAcceptanceData = () => {
       itemName: row.itemName,
       spec: row.spec,
       applyPrice: row.applyPrice,
-      invoicePrice: row.invoicePrice,
       photoUrl: row.photoUrl,
-      invoiceUrl: row.invoiceUrl || undefined,
-      priceCheck: Number(row.invoicePrice) > Number(row.applyPrice) ? 'over' : 'pass',
       remark: row.remark
     }))
   };
@@ -432,19 +404,6 @@ const submitAcceptance = async () => {
   for (const row of items.value) {
     if (!row.photoUrl) {
       showFailToast(`【${row.itemName}】请拍摄实物照片`);
-      return;
-    }
-    if (row.invoicePrice === '' || row.invoicePrice === null || row.invoicePrice === undefined) {
-      showFailToast(`【${row.itemName}】请填写发票金额`);
-      return;
-    }
-    const invoicePrice = Number(row.invoicePrice);
-    const applyPrice = Number(row.applyPrice);
-    if (invoicePrice > applyPrice) {
-      showConfirmDialog({
-        title: '金额冲红',
-        message: `【${row.itemName}】发票金额大于申请单价，提交后需要重新开发票或重新采购。是否继续？`
-      }).then(() => doSubmit()).catch(() => {});
       return;
     }
   }

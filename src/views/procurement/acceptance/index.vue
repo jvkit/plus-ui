@@ -137,12 +137,9 @@
         <template #header>
           <div class="card-header">
             <span>验收明细</span>
-            <div class="card-header-actions">
-              <el-alert type="info" :closable="false" show-icon class="inline-alert">
-                <template #title>填写发票金额后系统自动核对：不超过申请单价显示「通过」，超出显示「冲红」；实物图片每行必填，发票 PDF 在「发票台账」统一上传</template>
-              </el-alert>
-              <el-button type="primary" plain icon="MagicStick" @click="openAiMatch">AI 识别发票</el-button>
-            </div>
+            <el-alert type="info" :closable="false" show-icon class="inline-alert">
+              <template #title>实物图片每行必填；发票 PDF 与金额核对在「发票台账」统一处理</template>
+            </el-alert>
           </div>
         </template>
         <el-table :data="form.items" border size="small">
@@ -150,18 +147,6 @@
           <el-table-column label="规格" align="center" prop="spec" min-width="90" :show-overflow-tooltip="true" />
           <el-table-column label="申请单价" align="center" width="100">
             <template #default="scope"><span>{{ (Number(scope.row.applyPrice) || 0).toFixed(2) }}</span></template>
-          </el-table-column>
-          <el-table-column label="发票金额" align="center" width="130">
-            <template #default="scope">
-              <el-input-number v-model="scope.row.invoicePrice" :min="0" :precision="2" :controls="false" placeholder="发票金额" style="width: 100%" @change="calcPriceCheck(scope.$index)" />
-            </template>
-          </el-table-column>
-          <el-table-column label="金额核对" align="center" width="90">
-            <template #default="scope">
-              <el-tag :type="scope.row.priceCheck === 'red' ? 'danger' : (scope.row.priceCheck === 'over' ? 'warning' : 'success')">
-                {{ scope.row.priceCheck === 'red' ? '冲红' : (scope.row.priceCheck === 'over' ? '超标' : '通过') }}
-              </el-tag>
-            </template>
           </el-table-column>
           <el-table-column label="实物图片" align="center" width="140">
             <template #default="scope">
@@ -184,70 +169,14 @@
         </div>
       </template>
     </el-dialog>
-
-    <!-- AI 批量识别发票对话框 -->
-    <el-dialog v-model="aiDialog.visible" title="AI 批量识别发票" width="720px" append-to-body :close-on-click-modal="false">
-      <el-alert type="info" :closable="false" show-icon class="mb-2">
-        <template #title>上传多张发票 PDF（可一次多张，也可分多轮补充）。系统自动识别票面字段并按商品名匹配，匹配成功的自动填「发票金额(不含税)」并保存发票附件；冲红票会标记「冲红」；不相干的发票不会自动上传。</template>
-      </el-alert>
-      <el-alert v-if="missingInvoiceCount > 0" type="warning" :closable="false" show-icon class="mb-2">
-        <template #title>补齐材料：当前还有 {{ missingInvoiceCount }} 个商品缺少发票。本轮只需拖入缺口发票，已识别的不会重复处理。</template>
-      </el-alert>
-      <div class="mb-2">
-        <el-upload
-          ref="aiUploadRef"
-          multiple
-          drag
-          :auto-upload="false"
-          :limit="20"
-          :file-type="['pdf']"
-          accept=".pdf"
-          v-model:file-list="aiDialog.fileList"
-        >
-          <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-          <div class="el-upload__text">将发票 PDF 拖到此处，或<em>点击选择</em></div>
-          <template #tip>
-            <div class="el-upload__tip">仅支持 PDF，可一次多张；每轮识别后队列自动清空</div>
-          </template>
-        </el-upload>
-      </div>
-
-      <div v-if="aiRounds.length > 0" class="ai-rounds mb-2">
-        <div class="ai-report-title">历史识别记录（共 {{ aiRounds.length }} 轮）</div>
-        <el-collapse>
-          <el-collapse-item v-for="(r, i) in aiRounds" :key="r.round" :name="r.round" :title="`第 ${r.round} 轮 · ${r.time} · ${r.files.length} 个文件`">
-            <div v-for="(line, li) in r.lines" :key="li" class="ai-round-line"
-              :class="line.includes('✅') ? 'line-success' : (line.includes('❌') ? 'line-error' : 'line-warning')">{{ line }}</div>
-          </el-collapse-item>
-        </el-collapse>
-      </div>
-
-      <div v-if="aiDialog.report && aiDialog.report.lines" class="ai-report">
-        <div class="ai-report-title">本轮识别结果</div>
-        <el-alert v-for="(line, i) in aiDialog.report.lines" :key="i" :closable="false" show-icon class="mb-1"
-          :type="line.includes('✅') ? 'success' : (line.includes('❌') ? 'error' : 'warning')">
-          <template #title>{{ line }}</template>
-        </el-alert>
-      </div>
-
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button type="primary" :loading="aiDialog.loading" @click="startAiMatch">
-            {{ missingInvoiceCount > 0 ? '开始识别（补齐材料）' : '开始识别' }}
-          </el-button>
-          <el-button @click="aiDialog.visible = false; aiDialog.fileList = []; aiDialog.report = null">关 闭</el-button>
-        </div>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup name="ProcurementAcceptance" lang="ts">
-import { listAcceptance, getAcceptance, delAcceptance, addAcceptance, updateAcceptance, exportAcceptance, acceptableRequestList, submitAcceptance, aiInvoiceMatch } from '@/api/procurement/acceptance';
+import { listAcceptance, getAcceptance, delAcceptance, addAcceptance, updateAcceptance, exportAcceptance, acceptableRequestList, submitAcceptance } from '@/api/procurement/acceptance';
 import { AcceptanceForm, AcceptanceQuery, AcceptanceItemForm, AcceptanceVO } from '@/api/procurement/acceptance/types';
 import { getRequest } from '@/api/procurement/request';
 import { treeProject } from '@/api/procurement/project';
-import { UploadUserFile } from 'element-plus';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 
@@ -277,18 +206,6 @@ const dialog = reactive<DialogOption>({
   title: ''
 });
 
-const aiDialog = reactive<{
-  visible: boolean;
-  loading: boolean;
-  fileList: UploadUserFile[];
-  report: { lines: string[] } | null;
-}>({
-  visible: false,
-  loading: false,
-  fileList: [],
-  report: null
-});
-
 const emptyItem = (): AcceptanceItemForm => ({
   id: undefined,
   acceptanceId: undefined,
@@ -296,11 +213,7 @@ const emptyItem = (): AcceptanceItemForm => ({
   itemName: '',
   spec: '',
   applyPrice: undefined,
-  invoicePrice: undefined,
-  priceCheck: 'pass',
   photoUrl: '',
-  invoiceUrl: '',
-  result: 'pass',
   remark: ''
 });
 
@@ -378,136 +291,6 @@ const onRequestChange = async (val: number | string | undefined) => {
   form.value.items = rows;
 };
 
-/** 打开 AI 识别发票对话框 */
-const openAiMatch = () => {
-  if (!form.value.items || form.value.items.length === 0) {
-    proxy?.$modal.msgError('请先选择关联采购申请，带出验收明细');
-    return;
-  }
-  aiDialog.visible = true;
-  // 每次打开都清空文件队列，避免上一轮残留文件被重复识别
-  aiDialog.fileList = [];
-  // 有历史轮次时先展示最新一轮
-  const rounds = parseAiRounds(form.value.aiDetail);
-  aiDialog.report = rounds.length > 0 ? { lines: rounds[rounds.length - 1].lines || [] } : null;
-};
-
-/** 解析验收单 aiDetail（JSON 数组）为轮次列表 */
-const parseAiRounds = (detail?: string): any[] => {
-  if (!detail) return [];
-  try {
-    const arr = JSON.parse(detail);
-    return Array.isArray(arr) ? arr : [];
-  } catch {
-    return [];
-  }
-};
-
-/** 缺口明细数（未填发票金额的行数） */
-const missingInvoiceCount = computed(() =>
-  (form.value.items || []).filter((it: AcceptanceItemForm) => it.invoicePrice === undefined || it.invoicePrice === null).length
-);
-
-/** AI 轮次列表（倒序，最新在前） */
-const aiRounds = computed(() => parseAiRounds(form.value.aiDetail).slice().reverse());
-
-/** 开始 AI 识别 + 匹配 + 持久化（支持多轮：只传尚未填发票金额的明细，已填的不重复处理） */
-const startAiMatch = async () => {
-  const files = aiDialog.fileList.filter((f) => f.raw).map((f) => f.raw as File);
-  if (files.length === 0) {
-    proxy?.$modal.msgError('请先选择发票 PDF 文件');
-    return;
-  }
-  // 只把「尚未填发票金额」的明细送匹配，已填的视为已处理（支持多轮补充上传）
-  const pendingItems = (form.value.items || []).filter(
-    (it: AcceptanceItemForm) => it.invoicePrice === undefined || it.invoicePrice === null
-  );
-  if (pendingItems.length === 0) {
-    proxy?.$modal.msgError('所有明细都已填写发票金额，无需再识别');
-    return;
-  }
-  const items = pendingItems.map((it: AcceptanceItemForm) => ({
-    id: it.sourceItemId ?? it.id,
-    itemName: it.itemName,
-    spec: it.spec,
-    applyPrice: Number(it.applyPrice) || 0,
-    quantity: 1
-  }));
-
-  aiDialog.loading = true;
-  aiDialog.report = null;
-  try {
-    const res = await aiInvoiceMatch(items, files, form.value.id, form.value.requestId);
-    const data = res.data || res;
-    const results: any[] = data.results || [];
-    for (let idx = 0; idx < results.length; idx++) {
-      const r = results[idx];
-      // 后端已做 OSS 上传并持久化发票台账；前端直接用返回的 ossId 回填 invoiceUrl
-      const ossId = r.ossId || '';
-      const isRed = !!r.extracted?.is_red_invoice;
-
-      if (r.matchStatus === 'matched' && r.matchedItemIds && r.matchedItemIds.length > 0) {
-        const matchedIds = new Set(r.matchedItemIds.map(String));
-        const unitPrices: Record<string, number> = r.matchedUnitPrices || {};
-        const checks: Record<string, string> = {};
-        (r.amountCheck?.items || []).forEach((c: any) => { checks[String(c.itemId)] = c.status; });
-        const targetRows = (form.value.items || []).filter((it: AcceptanceItemForm) =>
-          matchedIds.has(String(it.sourceItemId ?? it.id))
-        );
-        for (const row of targetRows) {
-          const rowId = String(row.sourceItemId ?? row.id);
-          const unitPrice = unitPrices[rowId];
-          if (unitPrice !== undefined && unitPrice !== null) {
-            row.invoicePrice = Number(unitPrice);
-          }
-          if (ossId) row.invoiceUrl = ossId;
-          if (isRed) {
-            row.priceCheck = 'red';
-          } else {
-            const st = checks[rowId];
-            row.priceCheck = st === 'amount_exceed' ? 'over' : 'pass';
-          }
-          row.result = row.priceCheck;
-        }
-      }
-    }
-    aiDialog.report = { lines: data.summary?.lines || [] };
-    // 留痕：本轮识别结果追加进验收单 aiDetail，随表单保存持久化
-    const round = {
-      round: parseAiRounds(form.value.aiDetail).length + 1,
-      time: proxy?.parseTime(new Date()) || '',
-      files: files.map((f) => f.name),
-      lines: data.summary?.lines || []
-    };
-    const rounds = parseAiRounds(form.value.aiDetail);
-    rounds.push(round);
-    form.value.aiDetail = JSON.stringify(rounds);
-    // 识别成功后清空本轮文件队列，下一轮只装新拖入的补齐文件
-    aiDialog.fileList = [];
-    proxy?.$modal.msgSuccess(`识别完成：匹配 ${data.summary?.matchedInvoiceCount ?? 0} 张发票`);
-  } catch (e: any) {
-    proxy?.$modal.msgError('AI 识别失败：' + (e?.message || '请稍后重试'));
-  } finally {
-    aiDialog.loading = false;
-  }
-};
-
-/** 自动核对（不含税口径）：负数=冲红(red)，发票金额>申请金额=超标(over)，否则通过(pass) */
-const calcPriceCheck = (index: number) => {
-  const row = form.value.items[index];
-  if (!row) return;
-  const invoice = Number(row.invoicePrice);
-  const apply = Number(row.applyPrice) || 0;
-  if (Number.isFinite(invoice) && invoice < 0) {
-    row.priceCheck = 'red';      // 红字/冲红发票
-  } else if (Number.isFinite(invoice) && invoice > apply) {
-    row.priceCheck = 'over';     // 超标
-  } else {
-    row.priceCheck = 'pass';
-  }
-  row.result = row.priceCheck;
-};
-
 /** 取消按钮 */
 const cancel = () => {
   reset();
@@ -559,7 +342,7 @@ const handleUpdate = async (row?: AcceptanceVO) => {
   dialog.title = '修改采购验收';
 };
 
-/** 明细业务校验：每行发票金额、实物图片、发票附件必填 */
+/** 明细业务校验：每行实物图片必填 */
 const validateItems = (): boolean => {
   if (!form.value.items || form.value.items.length === 0) {
     proxy?.$modal.msgError('请先选择关联采购申请，带出验收明细');
@@ -567,10 +350,6 @@ const validateItems = (): boolean => {
   }
   for (let i = 0; i < form.value.items.length; i++) {
     const item = form.value.items[i];
-    if (item.invoicePrice === undefined || item.invoicePrice === null) {
-      proxy?.$modal.msgError('第 ' + (i + 1) + ' 行：请填写发票金额');
-      return false;
-    }
     if (!item.photoUrl) {
       proxy?.$modal.msgError('第 ' + (i + 1) + ' 行：请上传实物图片');
       return false;
@@ -652,33 +431,5 @@ onActivated(() => {
 .inline-alert {
   flex: 1;
   max-width: 720px;
-}
-.ai-report {
-  margin-top: 8px;
-  max-height: 260px;
-  overflow-y: auto;
-}
-.ai-report-title {
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-.ai-round-line {
-  padding: 2px 0;
-  font-size: 13px;
-}
-.line-success {
-  color: var(--el-color-success);
-}
-.line-error {
-  color: var(--el-color-danger);
-}
-.line-warning {
-  color: var(--el-color-warning);
-}
-.mb-2 {
-  margin-bottom: 12px;
-}
-.mb-1 {
-  margin-bottom: 4px;
 }
 </style>
