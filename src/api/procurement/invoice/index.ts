@@ -26,3 +26,24 @@ export function delProcurementInvoice(ids: string | number | Array<string | numb
     method: 'delete'
   });
 }
+
+// 手工上传发票并挂载到验收明细（不走 AI）
+export function manualUploadInvoice(params: {
+  acceptanceId?: string | number;
+  requestId?: string | number;
+  acceptanceItemId?: string | number;
+  files: File[];
+}) {
+  const formData = new FormData();
+  if (params.acceptanceId) formData.append('acceptanceId', String(params.acceptanceId));
+  if (params.requestId) formData.append('requestId', String(params.requestId));
+  if (params.acceptanceItemId) formData.append('acceptanceItemId', String(params.acceptanceItemId));
+  params.files.forEach((file) => formData.append('files', file));
+  return request({
+    url: '/procurement/invoice/manual-upload',
+    method: 'post',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 300000
+  });
+}

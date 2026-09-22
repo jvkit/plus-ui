@@ -19,12 +19,20 @@ export function getReimbursement(id: string | number): AxiosPromise<Reimbursemen
   });
 }
 
-// 生成报销包（后端自动生成报销编号 reim-...，并将相关材料打包为文件）
+// 新增报销记录（建立申请-报销关联，生成报销编号）
 export function addReimbursement(data: ReimbursementForm) {
   return request({
     url: '/procurement/reimbursement',
     method: 'post',
     data: data
+  });
+}
+
+// 生成报销包（后端打包 Excel + 验收图片 + 发票 PDF 为 zip，上传 MinIO 并回写）
+export function generateReimbursement(id: string | number) {
+  return request({
+    url: '/procurement/reimbursement/generate/' + id,
+    method: 'post'
   });
 }
 
@@ -47,10 +55,10 @@ export function exportReimbursement(query: ReimbursementQuery) {
   });
 }
 
-// 查询已验收完成的采购申请列表
-export function acceptedRequestList(): AxiosPromise<any[]> {
+// 查询已完成验收的采购申请列表（报销打包数据源）
+export function reimbursableRequestList(): AxiosPromise<any[]> {
   return request({
-    url: '/procurement/request/acceptedList',
+    url: '/procurement/request/reimbursableList',
     method: 'get'
   });
 }

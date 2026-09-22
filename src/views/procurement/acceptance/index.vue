@@ -139,7 +139,7 @@
             <span>验收明细</span>
             <div class="card-header-actions">
               <el-alert type="info" :closable="false" show-icon class="inline-alert">
-                <template #title>填写发票金额后系统自动核对：不超过申请单价显示「通过」，超出显示「冲红」；实物图片、发票附件每行必填</template>
+                <template #title>填写发票金额后系统自动核对：不超过申请单价显示「通过」，超出显示「冲红」；实物图片每行必填，发票 PDF 在「发票台账」统一上传</template>
               </el-alert>
               <el-button type="primary" plain icon="MagicStick" @click="openAiMatch">AI 识别发票</el-button>
             </div>
@@ -166,11 +166,6 @@
           <el-table-column label="实物图片" align="center" width="140">
             <template #default="scope">
               <ImageUpload v-model="scope.row.photoUrl" :limit="1" />
-            </template>
-          </el-table-column>
-          <el-table-column label="发票附件" align="center" width="140">
-            <template #default="scope">
-              <FileUpload v-model="scope.row.invoiceUrl" :limit="1" :file-type="['pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg']" />
             </template>
           </el-table-column>
           <el-table-column label="备注" align="center" min-width="120">
@@ -578,10 +573,6 @@ const validateItems = (): boolean => {
     }
     if (!item.photoUrl) {
       proxy?.$modal.msgError('第 ' + (i + 1) + ' 行：请上传实物图片');
-      return false;
-    }
-    if (!item.invoiceUrl) {
-      proxy?.$modal.msgError('第 ' + (i + 1) + ' 行：请上传发票附件');
       return false;
     }
   }

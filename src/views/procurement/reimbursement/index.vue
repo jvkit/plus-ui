@@ -120,9 +120,9 @@
 </template>
 
 <script setup name="ProcurementReimbursement" lang="ts">
-import { listReimbursement, getReimbursement, addReimbursement, acceptedRequestList } from '@/api/procurement/reimbursement';
+import { listReimbursement, getReimbursement, addReimbursement, generateReimbursement, downloadReimbursement, reimbursableRequestList } from '@/api/procurement/reimbursement';
 import { ReimbursementForm, ReimbursementQuery, ReimbursementVO } from '@/api/procurement/reimbursement/types';
-import { getRequest } from '@/api/procurement/request';
+import { saveBlob } from '@/utils/save';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 
@@ -198,9 +198,9 @@ const getList = async () => {
   loading.value = false;
 };
 
-/** 加载已验收完成的申请列表 */
+/** 加载已完成验收的采购申请列表（报销数据源） */
 const loadAcceptedRequests = async () => {
-  const res = await acceptedRequestList();
+  const res = await reimbursableRequestList();
   acceptedRequests.value = res.data || [];
 };
 
@@ -232,24 +232,23 @@ const handlePack = () => {
   packDialog.visible = true;
 };
 
-/** 选择申请后带出项目/申请人 */
-const onRequestChange = async (val: number | string | undefined) => {
-  if (!val) {
-    packForm.acceptanceId = undefined;
+/** 选择申请后带出项目/申请人（申请人为单据发起人） */
+const onRequestChange = (val: number | string | undefined) => {
+  const req = acceptedRequests.value.find((item) => item.id === val);
+  if (!req) {
     packForm.projectId = undefined;
     packForm.projectName = '';
     packForm.applicant = '';
+    packForm.acceptanceId = undefined;
     return;
   }
-  const res = await getRequest(val);
-  const req = res.data;
   packForm.projectId = req.projectId;
   packForm.projectName = req.projectName || '';
-  packForm.applicant = req.leader || '';
-  packForm.acceptanceId = (req as any).acceptanceId;
+  packForm.applicant = req.applicantName || '';
+  packForm.acceptanceId = req.acceptanceId;
 };
 
-/** 打包 */
+/** 打包：先建报销记录，再触发生成报销包 */
 const submitPack = () => {
   packFormRef.value?.validate(async (valid: boolean) => {
     if (!valid) return;
@@ -260,7 +259,11 @@ const submitPack = () => {
       applicant: packForm.applicant,
       status: 'packing'
     } as ReimbursementForm;
-    await addReimbursement(payload);
+    const res = await addReimbursement(payload);
+    const newId = (res as any).data ?? (res as any).id;
+    if (newId) {
+      await generateReimbursement(newId);
+    }
     proxy?.$modal.msgSuccess('报销包生成成功');
     packDialog.visible = false;
     await getList();
@@ -281,7 +284,7 @@ const openFile = (url?: string) => {
   }
 };
 
-/** 下载按钮操作：下载选中的报销包文件 */
+/** 下载按钮操作：下载选中的报销包文件（blob 流式） */
 const handleDownload = async () => {
   const id = ids.value[0];
   if (!id) {
@@ -289,8 +292,13 @@ const handleDownload = async () => {
     return;
   }
   const row = reimbursementList.value.find((item) => item.id === id);
-  const fileName = `报销包_${row?.reimbursementCode || id}.zip`;
-  proxy?.download('procurement/reimbursement/download/' + id, {}, fileName);
+  if (row && row.status !== 'packed') {
+    proxy?.$modal.msgWarning('该记录尚未生成报销包，请先点击「生成报销包」');
+    return;
+  }
+  const fileName = `${row?.reimbursementCode || '报销包_' + id}.zip`;
+  const res: any = await downloadReimbursement(id);
+  saveBlob(new Blob([res]), fileName);
 };
 
 onMounted(() => {
