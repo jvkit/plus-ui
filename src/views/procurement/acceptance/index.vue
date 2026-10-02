@@ -84,6 +84,9 @@
         </el-table-column>
         <el-table-column label="操作" align="center" width="180" class-name="small-padding fixed-width">
           <template #default="scope">
+            <el-tooltip content="查看" placement="top">
+              <el-button link type="primary" icon="View" @click="handleView(scope.row)"></el-button>
+            </el-tooltip>
             <el-tooltip v-if="!scope.row.processInstanceId" content="提交" placement="top">
               <el-button v-hasPermi="['procurement:acceptance:submit']" link type="primary" icon="Promotion" @click="handleSubmit(scope.row)"></el-button>
             </el-tooltip>
@@ -101,7 +104,7 @@
 
     <!-- 添加或修改采购验收对话框 -->
     <el-dialog v-model="dialog.visible" :title="dialog.title" width="1100px" append-to-body>
-      <el-form ref="acceptanceFormRef" :model="form" :rules="rules" label-width="100px">
+      <el-form ref="acceptanceFormRef" :model="form" :rules="rules" label-width="100px" :disabled="dialog.readonly">
         <el-row>
           <el-col :span="12">
             <el-form-item label="关联采购申请" prop="requestId">
@@ -150,12 +153,21 @@
           </el-table-column>
           <el-table-column label="实物图片" align="center" width="140">
             <template #default="scope">
-              <ImageUpload v-model="scope.row.photoUrl" :limit="1" />
+              <ImageUpload v-if="!dialog.readonly" v-model="scope.row.photoUrl" :limit="1" />
+              <el-image
+                v-else-if="scope.row.photoUrl"
+                :src="scope.row.photoUrl"
+                :preview-src-list="[scope.row.photoUrl]"
+                style="width: 56px; height: 56px"
+                fit="cover"
+                preview-teleported
+              />
+              <span v-else>-</span>
             </template>
           </el-table-column>
           <el-table-column label="备注" align="center" min-width="120">
             <template #default="scope">
-              <el-input v-model="scope.row.remark" placeholder="备注" />
+              <el-input v-model="scope.row.remark" placeholder="备注" :disabled="dialog.readonly" />
             </template>
           </el-table-column>
         </el-table>
@@ -163,9 +175,11 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button type="primary" plain @click="submitDraft">保 存 草 稿</el-button>
-          <el-button type="success" @click="handleSubmitFlow">提 交</el-button>
-          <el-button @click="cancel">取 消</el-button>
+          <template v-if="!dialog.readonly">
+            <el-button type="primary" plain @click="submitDraft">保 存 草 稿</el-button>
+            <el-button type="success" @click="handleSubmitFlow">提 交</el-button>
+          </template>
+          <el-button @click="cancel">关 闭</el-button>
         </div>
       </template>
     </el-dialog>
@@ -177,6 +191,7 @@ import { listAcceptance, getAcceptance, delAcceptance, addAcceptance, updateAcce
 import { AcceptanceForm, AcceptanceQuery, AcceptanceItemForm, AcceptanceVO } from '@/api/procurement/acceptance/types';
 import { getRequest } from '@/api/procurement/request';
 import { treeProject } from '@/api/procurement/project';
+import { listByIds } from '@/api/system/oss';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 
@@ -201,9 +216,10 @@ const statusOptions = ref([
 
 const queryFormRef = ref<ElFormInstance>();
 const acceptanceFormRef = ref<ElFormInstance>();
-const dialog = reactive<DialogOption>({
+const dialog = reactive<DialogOption & { readonly: boolean }>({
   visible: false,
-  title: ''
+  title: '',
+  readonly: false
 });
 
 const emptyItem = (): AcceptanceItemForm => ({
@@ -325,6 +341,7 @@ const handleSelectionChange = (selection: AcceptanceVO[]) => {
 /** 新增按钮操作 */
 const handleAdd = () => {
   reset();
+  dialog.readonly = false;
   loadOptions();
   dialog.visible = true;
   dialog.title = '添加采购验收';
@@ -333,6 +350,7 @@ const handleAdd = () => {
 /** 修改按钮操作 */
 const handleUpdate = async (row?: AcceptanceVO) => {
   reset();
+  dialog.readonly = false;
   loadOptions();
   const id = row?.id || ids.value[0];
   const res = await getAcceptance(id);
@@ -340,6 +358,37 @@ const handleUpdate = async (row?: AcceptanceVO) => {
   form.value.items = (res.data.items || []).map((it: any) => ({ ...emptyItem(), ...it }));
   dialog.visible = true;
   dialog.title = '修改采购验收';
+};
+
+/** 查看按钮操作：只读打开，实物图片解析为可预览大图 */
+const handleView = async (row?: any) => {
+  reset();
+  dialog.readonly = true;
+  const id = row?.id || ids.value[0];
+  const res = await getAcceptance(id);
+  form.value = { ...JSON.parse(JSON.stringify(initFormData)), ...res.data };
+  form.value.items = (res.data.items || []).map((it: any) => ({ ...emptyItem(), ...it }));
+  await resolveItemPhotos(form.value.items);
+  dialog.visible = true;
+  dialog.title = '查看采购验收';
+};
+
+/** 批量将实物图片的 OSS ID 解析为真实 URL（只读查看用） */
+const resolveItemPhotos = async (items: AcceptanceItemForm[]) => {
+  const ossIds = items
+    .map((it) => String(it.photoUrl || '').split(',').filter(Boolean))
+    .flat();
+  if (!ossIds.length) return;
+  const res: any = await listByIds(ossIds.join(','));
+  const urlMap = new Map((res.data || []).map((o: any) => [String(o.ossId), o.url]));
+  items.forEach((it) => {
+    if (it.photoUrl) {
+      it.photoUrl = String(it.photoUrl)
+        .split(',')
+        .map((id) => urlMap.get(id) || id)
+        .join(',');
+    }
+  });
 };
 
 /** 明细业务校验：每行实物图片必填 */

@@ -1,3 +1,5 @@
+import type { ReservePerson } from '@/api/procurement/reserve/types';
+
 /** 开票信息（对公必填，存 invoice_info_json） */
 export interface InvoiceInfo {
   title: string; // 开票抬头
@@ -45,6 +47,9 @@ export interface RequestVO extends BaseEntity {
   paymentScreenshot: string; // 付款截图（自购必填）
   quotationUrl: string; // 报价单（对公必填）
   invoiceInfo?: InvoiceInfo; // 开票信息（对公必填）
+  reservePeopleJson?: string; // 备用金人+扣款顺序（JSON 字符串：[{personId,personName},...]）
+  useUserId?: number | string; // 使用人ID
+  useUserName?: string; // 使用人姓名
   remainingBudget?: number; // 项目剩余资金（后端带出，前端提示）
   status: string;
   acceptanceStatus?: string; // 验收标志 none/processing/done
@@ -97,6 +102,9 @@ export interface RequestForm {
   paymentScreenshot: string;
   quotationUrl: string;
   invoiceInfo: InvoiceInfo;
+  reservePeople?: ReservePerson[]; // 备用金人（前端组件态，顺序=扣款顺序；提交时序列化为 reservePeopleJson）
+  useUserId?: number | string;
+  useUserName?: string;
   status: string;
   remark: string;
   items: RequestItemForm[];

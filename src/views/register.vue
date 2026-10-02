@@ -2,12 +2,12 @@
   <div class="register">
     <div class="register-shell">
       <section class="register-brand">
-        <span class="brand-pill">Plus UI Workspace</span>
-        <h1 class="brand-title">企业级后台管理系统</h1>
+        <span class="brand-pill">ioply OA</span>
+        <h1 class="brand-title">一体化协同办公平台</h1>
         <p class="brand-desc">
-          真正面向企业级的应用框架 组件化 模块化 轻耦合 高扩展 针对企业痛点 业界一流技术栈
+          覆盖采购申请、审批流转、验收入库、发票台账与资金管理的一体化办公系统
           <br />
-          重写 RuoYi-Vue 所有功能 集成 Sa-Token、Mybatis-Plus、WarmFlow、SpringDoc、Hutool、OSS 定期同步。
+          流程驱动 · AI 辅助审核 · 数据全程留痕。
         </p>
         <div class="brand-highlights">
           <span v-for="item in highlights" :key="item" class="highlight-chip">{{ item }}</span>
@@ -23,7 +23,7 @@
       <el-form ref="registerRef" :model="registerForm" :rules="registerRules" class="register-form">
         <div class="title-box">
           <div>
-            <p class="eyebrow">Workspace Register</p>
+            <p class="eyebrow">ioplyOA Register</p>
             <h3 class="title">{{ title }}</h3>
             <p class="subtitle">创建新的业务工作台账号，接入当前系统权限与登录体系。</p>
           </div>
@@ -101,7 +101,7 @@
     </div>
 
     <div class="el-register-footer">
-      <span>Copyright © 2018-{{ currentYear }} 疯狂的狮子Li All Rights Reserved.</span>
+      <span>Copyright © {{ currentYear }} ioplyOA All Rights Reserved.</span>
     </div>
   </div>
 </template>
@@ -115,11 +115,11 @@ import { RegisterForm } from '@/api/types';
 const title = import.meta.env.VITE_APP_TITLE;
 const currentYear = new Date().getFullYear();
 const quickStats = [
-  { label: '细粒度权限管理', value: '动态权限控制' },
-  { label: '主流技术栈', value: '全栈技术集成' },
-  { label: 'UI样式', value: '卡片式' }
+  { label: '采购全流程', value: '申请到报销' },
+  { label: '发票处理', value: 'AI 辅助审核' },
+  { label: '资金管理', value: '项目备用金' }
 ];
-const highlights = ['技术栈全面升级', '动态菜单', '多主题布局', '深浅色主题'];
+const highlights = ['流程审批', '发票识别', '验收留痕', '资金台账'];
 const router = useRouter();
 
 const { t } = useI18n();

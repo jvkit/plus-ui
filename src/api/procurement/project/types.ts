@@ -4,8 +4,8 @@ export interface ProjectVO extends BaseEntity {
   children?: ProjectVO[];
   projectCode: string;
   projectName: string;
-  deptId: number | string; // 归属部门ID
-  deptName: string; // 归属部门名称
+  ownerId: number | string; // 归属ID（pms_fund_source 树节点）
+  ownerName: string; // 归属名称
   leader: string;
   leaderId: number | string; // 项目负责人用户ID
   budget: number;
@@ -23,7 +23,7 @@ export interface ProjectForm {
   parentId: number | string | undefined;
   projectCode: string;
   projectName: string;
-  deptId: number | string | undefined; // 归属部门ID
+  ownerId: number | string | undefined; // 归属ID（pms_fund_source 树节点）
   leader: string;
   leaderId: number | string | undefined; // 项目负责人用户ID
   budget: number | undefined;

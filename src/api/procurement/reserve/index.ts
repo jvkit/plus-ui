@@ -1,5 +1,5 @@
 import request from '@/utils/request';
-import { ReserveAccountVO, ReserveForm, ReserveSummaryVO, ReserveUserOption } from './types';
+import { ReserveAccountVO, ReserveForm, ReserveOptionVO, ReserveSummaryVO, ReserveUserOption } from './types';
 import type { AxiosPromise } from '@/utils/api-types';
 
 // 查询备用金账户列表（额度/已占用/可用/未报销笔数/已回笼）
@@ -40,6 +40,14 @@ export function updateReserve(data: ReserveForm) {
 export function listReserveUserOptions(): AxiosPromise<ReserveUserOption[]> {
   return request({
     url: '/procurement/reserve/userOptions',
+    method: 'get'
+  });
+}
+
+// 备用金平铺选人选项（登录即可，普通用户可用；额度/已用/可用与账户表一致）
+export function reserveOptions(): AxiosPromise<ReserveOptionVO[]> {
+  return request({
+    url: '/procurement/reserve/options',
     method: 'get'
   });
 }

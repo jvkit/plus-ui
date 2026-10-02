@@ -53,7 +53,7 @@
         <el-table-column type="selection" width="55" align="center" />
         <el-table-column v-if="false" label="主键" align="center" prop="id" />
         <el-table-column v-if="false" label="项目编码" align="center" prop="projectCode" :show-overflow-tooltip="true" />
-        <el-table-column label="资金来源" align="center" prop="deptName" width="160" />
+        <el-table-column label="项目归属" align="center" prop="ownerName" width="160" />
         <el-table-column label="项目名称" align="center" prop="projectName" min-width="260" :show-overflow-tooltip="true" />
         <el-table-column label="项目负责人" align="center" prop="leader" />
         <el-table-column label="项目预算" align="center" prop="budget" width="120">
@@ -108,8 +108,8 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="归属部门" prop="deptId">
-              <el-tree-select v-model="form.deptId" :data="deptTree" :props="deptTreeProps" check-strictly clearable placeholder="选择归属部门" style="width: 100%" />
+            <el-form-item label="项目归属" prop="ownerId">
+              <el-tree-select v-model="form.ownerId" :data="fundSourceTree" :props="fundSourceTreeProps" check-strictly clearable placeholder="选择项目归属" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -168,7 +168,7 @@ import { listProject, getProject, delProject, addProject, updateProject } from '
 import { ProjectForm, ProjectQuery, ProjectVO } from '@/api/procurement/project/types';
 import { listUser } from '@/api/system/user';
 import type { UserVO } from '@/api/system/user/types';
-import { listDept } from '@/api/system/dept';
+import { fundSourceTree as getFundSourceTree } from '@/api/procurement/fundSource';
 import { useTreeTableExpand } from '@/hooks/tree/useTreeTableExpand';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
@@ -198,7 +198,7 @@ const initFormData: ProjectForm = {
   parentId: 0,
   projectCode: '',
   projectName: '',
-  deptId: undefined,
+  ownerId: undefined,
   leader: '',
   leaderId: undefined,
   budget: undefined,
@@ -324,8 +324,8 @@ const handleExport = () => {
 };
 
 const userOptions = ref<UserVO[]>([]);
-const deptTree = ref<any[]>([]);
-const deptTreeProps = { value: 'deptId', label: 'deptName', children: 'children' } as any;
+const fundSourceTree = ref<any[]>([]);
+const fundSourceTreeProps = { value: 'id', label: 'name', children: 'children' } as any;
 
 /** 加载用户列表（负责人选择器） */
 const loadUserOptions = async () => {
@@ -333,10 +333,10 @@ const loadUserOptions = async () => {
   userOptions.value = res.data.rows || [];
 };
 
-/** 加载部门树（归属部门选择器） */
-const loadDeptOptions = async () => {
-  const res = await listDept({} as any);
-  deptTree.value = proxy?.handleTree(res.data, 'deptId', 'parentId', 'children') || [];
+/** 加载项目归属树（归属选择器，数据源 pms_fund_source，与部门无关） */
+const loadFundSourceOptions = async () => {
+  const res = await getFundSourceTree();
+  fundSourceTree.value = res.data || [];
 };
 
 /** 负责人选中后回写姓名 */
@@ -348,7 +348,7 @@ const onLeaderChange = (userId: number | string) => {
 onMounted(() => {
   getList();
   loadUserOptions();
-  loadDeptOptions();
+  loadFundSourceOptions();
 });
 </script>
 

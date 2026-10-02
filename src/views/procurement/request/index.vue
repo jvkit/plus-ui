@@ -149,10 +149,10 @@
               <el-tree-select
                 v-model="form.projectId"
                 :data="projectTree"
-                :props="treeProps"
+                :props="treePropsLeafOnly"
                 check-strictly
                 clearable
-                placeholder="请选择项目"
+                placeholder="请选择项目（仅叶子可选）"
                 style="width: 100%"
               />
             </el-form-item>
@@ -186,6 +186,16 @@
         </el-form-item>
         <el-form-item label="申请原因" prop="applyReason">
           <el-input v-model="form.applyReason" type="textarea" placeholder="请输入申请原因" maxlength="1000" />
+        </el-form-item>
+
+        <!-- 自购：备用金人（顺序扣款）+ 使用人 -->
+        <el-form-item v-if="form.titleType === '自购'" label="备用金人">
+          <ReservePicker v-model="form.reservePeople" :amount="totalAmount" />
+        </el-form-item>
+        <el-form-item v-if="form.titleType === '自购'" label="使用人" prop="useUserId">
+          <el-select v-model="form.useUserId" placeholder="请选择使用人" clearable filterable style="width: 100%" @change="onUseUserChange">
+            <el-option v-for="u in reserveUserOptions" :key="String(u.userId)" :label="u.nickName" :value="u.userId" />
+          </el-select>
         </el-form-item>
 
         <!-- 自购：付款截图 -->
@@ -360,6 +370,8 @@
         <el-descriptions-item label="项目负责人">{{ detail.data?.leader }}</el-descriptions-item>
         <el-descriptions-item label="当前审批人">{{ detail.data?.currentApprover || '—' }}</el-descriptions-item>
         <el-descriptions-item label="采购方式">{{ detail.data?.titleType }}</el-descriptions-item>
+        <el-descriptions-item v-if="detail.data?.titleType === '自购'" label="备用金人" :span="2">{{ reservePeopleNames(detail.data) }}</el-descriptions-item>
+        <el-descriptions-item v-if="detail.data?.titleType === '自购'" label="使用人">{{ detail.data?.useUserName || '—' }}</el-descriptions-item>
         <el-descriptions-item label="总金额">{{ (Number(detail.data?.amount) || 0).toFixed(2) }} 元</el-descriptions-item>
         <el-descriptions-item label="状态">
           <dict-tag :options="statusOptions" :value="detail.data?.status" />
@@ -393,6 +405,9 @@
 <script setup name="ProcurementRequest" lang="ts">
 import { listRequest, getRequest, delRequest, addRequest, updateRequest, submitRequest, listCategoryTree } from '@/api/procurement/request';
 import { RequestForm, RequestQuery, RequestVO, RequestItemForm } from '@/api/procurement/request/types';
+import { listReserveUserOptions } from '@/api/procurement/reserve';
+import { ReservePerson, ReserveUserOption } from '@/api/procurement/reserve/types';
+import ReservePicker from '@/components/ReservePicker/index.vue';
 import { treeProject } from '@/api/procurement/project';
 import { ProjectVO } from '@/api/procurement/project/types';
 import { useDict } from '@/utils/dict';
@@ -419,6 +434,13 @@ const treeProps = {
   value: 'id',
   label: 'projectName',
   children: 'children'
+} as any;
+/** 表单选项目的 props：只能选叶子（有子级的节点置灰不可选） */
+const treePropsLeafOnly = {
+  value: 'id',
+  label: 'projectName',
+  children: 'children',
+  disabled: (data: any) => Array.isArray(data.children) && data.children.length > 0
 } as any;
 /** 分类树选择器 props */
 const categoryTreeProps = { value: 'value', label: 'label', children: 'children' } as any;
@@ -481,6 +503,7 @@ const initFormData: RequestForm = {
   paymentScreenshot: '',
   quotationUrl: '',
   invoiceInfo: emptyInvoice(),
+  reservePeople: [],
   status: 'draft',
   remark: '',
   items: []
@@ -573,6 +596,20 @@ const projectNameOf = (id?: number | string): string => {
   return findProject(projectTree.value, id)?.projectName || '';
 };
 
+/* ---------------- 使用人下拉（备用金人员选项接口） ---------------- */
+const reserveUserOptions = ref<ReserveUserOption[]>([]);
+
+const loadReserveUserOptions = async () => {
+  const res = await listReserveUserOptions();
+  reserveUserOptions.value = res.data || [];
+};
+
+/** 使用人变更：同步姓名快照，随 BO 提交 { useUserId, useUserName } */
+const onUseUserChange = (val?: number | string) => {
+  const opt = reserveUserOptions.value.find((u) => String(u.userId) === String(val));
+  form.value.useUserName = opt?.nickName || '';
+};
+
 /** 自动拼接申请标题：【自购/对公】+项目名+月份月日期日+名称 */
 const buildTitle = () => {
   const type = form.value.titleType ? `【${form.value.titleType}】` : '';
@@ -602,10 +639,34 @@ const parseInvoiceInfo = (json?: string) => {
   }
 };
 
+/** 解析备用金人 JSON 字符串为有序数组（顺序即扣款顺序），坏数据兜底空数组 */
+const parseReservePeople = (json?: string): ReservePerson[] => {
+  if (!json) return [];
+  try {
+    const arr = JSON.parse(json);
+    if (!Array.isArray(arr)) return [];
+    return arr.filter((item) => item && item.personId !== undefined && item.personId !== null);
+  } catch (e) {
+    return [];
+  }
+};
+
+/** 详情展示：备用金人姓名按扣款顺序拼接 */
+const reservePeopleNames = (row: RequestVO) => {
+  const list = parseReservePeople(row.reservePeopleJson);
+  return list.length > 0 ? list.map((p) => p.personName).join('、') : '—';
+};
+
 /** 提交前把 invoiceInfo 对象序列化成 invoiceInfoJson 字符串（后端字段名） */
 const buildPayload = () => {
-  const data: any = { ...form.value, invoiceInfoJson: JSON.stringify(form.value.invoiceInfo || {}) };
+  const data: any = {
+    ...form.value,
+    invoiceInfoJson: JSON.stringify(form.value.invoiceInfo || {}),
+    // 备用金人数组序列化为后端字段 reservePeopleJson（自购提交带上，对公为空数组）
+    reservePeopleJson: JSON.stringify(form.value.reservePeople || [])
+  };
   delete data.invoiceInfo;
+  delete data.reservePeople;
   return data;
 };
 
@@ -665,6 +726,8 @@ const handleUpdate = async (row?: RequestVO) => {
   const d = res.data || {};
   // 后端存 invoiceInfoJson(字符串)，回显转成 invoiceInfo 对象
   (d as any).invoiceInfo = parseInvoiceInfo(d.invoiceInfoJson);
+  // 后端存 reservePeopleJson(字符串)，回显转成 ReservePicker 用的有序数组（d 为 {} 推导类型，读取走 as any 与上一行 invoiceInfoJson 一致）
+  (d as any).reservePeople = parseReservePeople((d as any).reservePeopleJson);
   form.value = { ...JSON.parse(JSON.stringify(initFormData)), ...d, items: d.items || [] };
   dialog.visible = true;
   dialog.title = '修改采购申请';
@@ -780,6 +843,10 @@ const validateBiz = (): boolean => {
     proxy?.$modal.msgError('自购需上传付款截图');
     return false;
   }
+  if (form.value.titleType === '自购' && (!form.value.reservePeople || form.value.reservePeople.length === 0)) {
+    proxy?.$modal.msgError('自购必须至少选择一个备用金出纳人（花谁的钱选谁）');
+    return false;
+  }
   if (form.value.titleType === '对公') {
     if (!form.value.quotationUrl) {
       proxy?.$modal.msgError('对公需上传报价单');
@@ -858,6 +925,7 @@ const handleExportForm = (row: RequestVO) => {
 onMounted(() => {
   getList();
   loadOptions();
+  loadReserveUserOptions();
 });
 // keep-alive 缓存下切回页面不会重新触发 onMounted，用 onActivated 兜底刷新
 // （如新建项目后回到本页需立即看到最新项目树/列表）

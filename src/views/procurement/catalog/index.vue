@@ -146,10 +146,10 @@
               <el-tree-select
                 v-model="form.projectId"
                 :data="projectTree"
-                :props="treeProps"
+                :props="treePropsLeafOnly"
                 check-strictly
                 clearable
-                placeholder="请选择项目(可空)"
+                placeholder="请选择项目(可空，仅叶子可选)"
                 style="width: 100%"
               />
             </el-form-item>
@@ -213,6 +213,13 @@ const unitOptions = ['个', '台', '套', '盒', '包', '箱', '米', '厘米', 
 
 /** 项目树选择器 props */
 const treeProps = { value: 'id', label: 'projectName', children: 'children' } as any;
+/** 表单选项目的 props：只能选叶子（有子级的节点置灰不可选） */
+const treePropsLeafOnly = {
+  value: 'id',
+  label: 'projectName',
+  children: 'children',
+  disabled: (data: any) => Array.isArray(data.children) && data.children.length > 0
+} as any;
 
 const queryFormRef = ref<ElFormInstance>();
 const catalogFormRef = ref<ElFormInstance>();

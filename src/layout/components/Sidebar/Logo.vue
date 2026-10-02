@@ -68,7 +68,7 @@ const logoTextColor = computed(() => (isDarkSide.value ? '#f8fbff' : 'var(--app-
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 16px;
     border-radius: 14px;
     background: v-bind(logoSurface);
     border: 1px solid v-bind(logoBorder);
@@ -85,7 +85,7 @@ const logoTextColor = computed(() => (isDarkSide.value ? '#f8fbff' : 'var(--app-
 
     & .sidebar-title {
       display: inline-block;
-      margin: 0;
+      margin: 0 0 0 14px;
       color: v-bind(logoTextColor);
       font-weight: 600;
       line-height: 1;

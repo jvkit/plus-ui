@@ -1,5 +1,5 @@
 // 资金流水类型定义
-import type { ReserveSummaryVO } from '@/api/procurement/reserve/types';
+import type { ReservePerson, ReserveSummaryVO } from '@/api/procurement/reserve/types';
 
 export interface FundFlowVO {
   id: number | string;
@@ -16,7 +16,8 @@ export interface FundFlowVO {
   operatorName: string; // 审批人
   titleType: string; // 采购方式（自购/对公）
   applicantId: number | string;
-  applicantName: string; // 申请人快照（=谁的钱）
+  applicantName: string; // 申请人快照（=备用金出纳人）
+  fundStatus?: string; // 资金状态（仅人工备用金流水有值）
   remark: string;
   createTime: string;
   updateTime: string;
@@ -25,11 +26,27 @@ export interface FundFlowVO {
 export interface FundFlowQuery extends PageQuery {
   projectId: number | string | undefined;
   flowType: string | undefined;
-  requestTitle: string | undefined; // 关键字：标题/编号
+  flowNo?: string; // 流水编号（模糊）
+  requestTitle?: string; // 关键字：标题/编号
   titleType?: string; // 采购方式（自购/对公）
+  applicantId?: number | string; // 备用金出纳人（精确）
   applicantName?: string; // 申请人（模糊）
+  fundStatus?: string; // 资金状态（精确）
   params?: Record<string, any>;
 }
+
+/** 人工登记资金流水（非采购订单的资金消耗） */
+export interface FundManualForm {
+  titleType: '自购' | '对公';
+  projectId: number | string;
+  amount: number;
+  remark?: string;
+  /** 备用金出纳人（仅自购需要，有序，顺序即扣款顺序） */
+  payers?: ReservePerson[];
+}
+
+/** 人工流水状态推进目标（单向：已采购未报销 → 已报销未汇款 → 已报销已汇款） */
+export type ManualFundStatus = 'reimbursed_unpaid' | 'reimbursed_paid';
 
 // 资金汇总
 export interface FundProjectSummaryVO {

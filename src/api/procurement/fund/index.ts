@@ -1,5 +1,5 @@
 import request from '@/utils/request';
-import { FundFlowQuery, FundFlowVO, FundStatusBoardVO, FundStatusForm, FundSummaryVO } from './types';
+import { FundFlowQuery, FundFlowVO, FundManualForm, FundStatusBoardVO, FundStatusForm, FundSummaryVO, ManualFundStatus } from './types';
 import type { PageResult } from '@/api/types';
 import type { AxiosPromise } from '@/utils/api-types';
 
@@ -35,6 +35,24 @@ export function updateFundStatus(data: FundStatusForm): AxiosPromise<void> {
     url: '/procurement/fund/status',
     method: 'put',
     data: data
+  });
+}
+
+// 人工登记资金流水（自购=按 payers 拆账扣备用金；对公=一条直支流水）
+export function addManualFundFlow(data: FundManualForm): AxiosPromise<FundFlowVO[]> {
+  return request({
+    url: '/procurement/fund/manual',
+    method: 'post',
+    data: data
+  });
+}
+
+// 人工流水资金状态推进（仅 requestId 为空的自购人工流水可操作，单向不可回溯）
+export function updateManualFundStatus(id: number | string, fundStatus: ManualFundStatus): AxiosPromise<void> {
+  return request({
+    url: `/procurement/fund/manual/${id}/fundStatus`,
+    method: 'put',
+    data: { fundStatus }
   });
 }
 

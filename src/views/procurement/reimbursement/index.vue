@@ -116,11 +116,24 @@
         <el-button type="primary" plain @click="detail.visible = false">关 闭</el-button>
       </template>
     </el-dialog>
+
+    <!-- 导出前发票对应提醒（只提醒不阻止） -->
+    <el-dialog v-model="invoiceDialog.visible" title="导出前确认：发票对应情况" width="680px" append-to-body>
+      <div v-loading="invoiceDialog.loading" class="invoice-txt-wrap">
+        <pre class="invoice-txt">{{ invoiceDialog.text }}</pre>
+      </div>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button type="primary" :loading="invoiceDialog.exporting" @click="confirmDownload">继续导出</el-button>
+          <el-button @click="invoiceDialog.visible = false">取 消</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup name="ProcurementReimbursement" lang="ts">
-import { listReimbursement, getReimbursement, addReimbursement, generateReimbursement, downloadReimbursement, reimbursableRequestList } from '@/api/procurement/reimbursement';
+import { listReimbursement, getReimbursement, addReimbursement, generateReimbursement, downloadReimbursement, getReimbursementInvoiceTxt, reimbursableRequestList } from '@/api/procurement/reimbursement';
 import { ReimbursementForm, ReimbursementQuery, ReimbursementVO } from '@/api/procurement/reimbursement/types';
 import { saveBlob } from '@/utils/save';
 
@@ -146,6 +159,13 @@ const packDialog = reactive<DialogOption>({ visible: false, title: '生成报销
 const detail = reactive<{ visible: boolean; data: ReimbursementVO | null }>({
   visible: false,
   data: null
+});
+const invoiceDialog = reactive<{ visible: boolean; loading: boolean; exporting: boolean; text: string; row: ReimbursementVO | undefined }>({
+  visible: false,
+  loading: false,
+  exporting: false,
+  text: '',
+  row: undefined
 });
 
 const initPackForm = {
@@ -284,7 +304,7 @@ const openFile = (url?: string) => {
   }
 };
 
-/** 下载按钮操作：下载选中的报销包文件（blob 流式） */
+/** 下载按钮操作：先弹发票对应提醒（只提醒不阻止），确认后再走原下载逻辑 */
 const handleDownload = async () => {
   const id = ids.value[0];
   if (!id) {
@@ -296,9 +316,36 @@ const handleDownload = async () => {
     proxy?.$modal.msgWarning('该记录尚未生成报销包，请先点击「生成报销包」');
     return;
   }
-  const fileName = `${row?.reimbursementCode || '报销包_' + id}.zip`;
-  const res: any = await downloadReimbursement(id);
-  saveBlob(new Blob([res]), fileName);
+  invoiceDialog.row = row;
+  invoiceDialog.text = '';
+  invoiceDialog.exporting = false;
+  invoiceDialog.visible = true;
+  invoiceDialog.loading = true;
+  try {
+    const res: any = await getReimbursementInvoiceTxt(row?.requestId ?? id);
+    invoiceDialog.text = res?.data || '未查询到该申请的发票对应记录';
+  } catch {
+    invoiceDialog.text = '发票对应情况获取失败，仍可直接导出。';
+  } finally {
+    invoiceDialog.loading = false;
+  }
+};
+
+/** 弹窗内「继续导出」：下载选中的报销包文件（blob 流式） */
+const confirmDownload = async () => {
+  const row = invoiceDialog.row;
+  const id = row?.id ?? ids.value[0];
+  if (!id) return;
+  invoiceDialog.exporting = true;
+  try {
+    const fileName = `${row?.reimbursementCode || '报销包_' + id}.zip`;
+    const res: any = await downloadReimbursement(id);
+    saveBlob(new Blob([res]), fileName);
+    invoiceDialog.visible = false;
+    proxy?.$modal.msgSuccess('已导出，资金状态已置为「已报销未汇款」');
+  } finally {
+    invoiceDialog.exporting = false;
+  }
 };
 
 onMounted(() => {
@@ -306,3 +353,23 @@ onMounted(() => {
   loadAcceptedRequests();
 });
 </script>
+
+<style scoped>
+.invoice-txt-wrap {
+  background: #fff;
+  border: 1px solid var(--el-border-color-light, #e4e7ed);
+  border-radius: 4px;
+  padding: 12px;
+  max-height: 50vh;
+  overflow: auto;
+}
+.invoice-txt {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #303133;
+}
+</style>

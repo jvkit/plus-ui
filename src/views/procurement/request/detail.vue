@@ -51,6 +51,19 @@
             </el-form-item>
           </el-col>
         </el-row>
+        <!-- 自购：扣款对象只读展示（备用金人顺序即扣款顺序），对公无此概念不展示 -->
+        <el-row v-if="form.titleType === '自购'">
+          <el-col :span="12">
+            <el-form-item label="备用金人">
+              <el-input :model-value="reservePeopleText" readonly />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="使用人">
+              <el-input :model-value="form.useUserName || '-'" readonly />
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-row>
           <el-col :span="12">
             <el-form-item label="项目负责人">
@@ -181,6 +194,19 @@ const purchaseTypeLabel = computed(() => {
 });
 
 const amountText = computed(() => (Number(form.value.amount) || 0).toFixed(2));
+
+/** 备用金人：reservePeopleJson 解析后按扣款顺序拼接，无值/坏数据兜底 '-' */
+const reservePeopleText = computed(() => {
+  const json = form.value.reservePeopleJson;
+  if (!json) return '-';
+  try {
+    const list = JSON.parse(json);
+    if (!Array.isArray(list) || list.length === 0) return '-';
+    return list.map((p: any) => p?.personName).join(' → ');
+  } catch {
+    return '-';
+  }
+});
 
 const statusMap: Record<string, { label: string; type: string }> = {
   draft: { label: '草稿', type: 'info' },

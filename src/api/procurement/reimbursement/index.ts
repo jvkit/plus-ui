@@ -45,6 +45,14 @@ export function downloadReimbursement(id: string | number) {
   });
 }
 
+// 导出前提醒：拉取该申请的发票对应情况文本
+export function getReimbursementInvoiceTxt(requestId: string | number): AxiosPromise<string> {
+  return request({
+    url: '/procurement/reimbursement/' + requestId + '/invoice-txt',
+    method: 'get'
+  });
+}
+
 // 导出报销导出列表
 export function exportReimbursement(query: ReimbursementQuery) {
   return request({

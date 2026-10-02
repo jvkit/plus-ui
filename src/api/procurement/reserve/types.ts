@@ -36,3 +36,18 @@ export interface ReserveUserOption {
   userId: number | string;
   nickName: string;
 }
+
+/** 备用金扣款人（顺序即扣款顺序，申请单 reservePeopleJson 的元素结构） */
+export interface ReservePerson {
+  personId: number | string;
+  personName: string;
+}
+
+/** 备用金平铺选人选项（/reserve/options，登录即可用；数字与账户列表一致） */
+export interface ReserveOptionVO {
+  personId: number | string;
+  personName: string;
+  quota: number; // 额度
+  occupied: number; // 已用（已占用）
+  available: number; // 可用
+}
