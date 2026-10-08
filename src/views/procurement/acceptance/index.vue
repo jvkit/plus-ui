@@ -107,7 +107,7 @@
       <el-form ref="acceptanceFormRef" :model="form" :rules="rules" label-width="100px" :disabled="dialog.readonly">
         <el-row>
           <el-col :span="12">
-            <el-form-item label="关联采购申请" prop="requestId">
+            <el-form-item label="关联采购" prop="requestId">
               <el-select v-model="form.requestId" placeholder="请选择已审批采购申请" clearable style="width: 100%" :disabled="form.id !== undefined" @change="onRequestChange">
                 <el-option v-for="item in requestOptions" :key="item.id" :label="item.title || item.requestCode" :value="item.id" />
               </el-select>

@@ -60,6 +60,10 @@ router.beforeEach(async (to, from) => {
           };
         }
       } else {
+        // 已登录但动态路由表里没有该路径（菜单未授权/路由未注册）→ 明确的权限提示，而不是落到 catch-all 404
+        if (!router.hasRoute(to.name as string) && !router.getRoutes().some(r => r.path === to.path)) {
+          return '/401';
+        }
         return true;
       }
     }
