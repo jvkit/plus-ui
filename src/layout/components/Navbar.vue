@@ -36,7 +36,7 @@
             <el-popover placement="bottom" trigger="click" transition="el-zoom-in-top" :width="300" :persistent="false">
               <template #reference>
                 <el-badge :value="noticeStore.unreadCount.value > 0 ? noticeStore.unreadCount.value : ''" :max="99">
-                  <div class="right-menu-item hover-effect message-trigger">
+                  <div class="right-menu-item hover-effect message-trigger" :class="{ 'has-unread': noticeStore.unreadCount.value > 0 }">
                     <svg-icon icon-class="message" />
                   </div>
                 </el-badge>
@@ -367,6 +367,22 @@ const handleCommand = (command: string) => {
 
     .message-trigger {
       display: inline-flex;
+    }
+
+    // 有未读消息时铃铛呼吸灯
+    .message-trigger.has-unread {
+      animation: bell-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes bell-pulse {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.6;
+        transform: scale(1.15);
+      }
     }
 
     .avatar-container {

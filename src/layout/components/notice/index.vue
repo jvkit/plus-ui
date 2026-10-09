@@ -2,12 +2,27 @@
   <div v-loading="state.loading" class="layout-navbars-breadcrumb-user-news">
     <div class="head-box">
       <div class="head-box-title">消息盒子</div>
-      <div class="head-box-btn" @click="readAll">全部已读</div>
+      <div class="head-box-btn" @click="handleReadAll">全部已读</div>
     </div>
     <el-tabs v-model="activeTab" class="message-tabs" stretch>
-      <el-tab-pane :label="`系统 ${tabCount.system}`" name="system"></el-tab-pane>
-      <el-tab-pane :label="`通知 ${tabCount.notice}`" name="notice"></el-tab-pane>
-      <el-tab-pane :label="`工作 ${tabCount.workflow}`" name="workflow"></el-tab-pane>
+      <el-tab-pane name="system">
+        <template #label>
+          <span>系统 {{ tabCount.system }}</span>
+        </template>
+      </el-tab-pane>
+      <el-tab-pane name="notice">
+        <template #label>
+          <span>通知 {{ tabCount.notice }}</span>
+        </template>
+      </el-tab-pane>
+      <el-tab-pane name="workflow">
+        <template #label>
+          <span class="workflow-tab">
+            工作 {{ tabCount.workflow }}
+            <span v-if="unreadWorkflowCount > 0" class="unread-dot"></span>
+          </span>
+        </template>
+      </el-tab-pane>
     </el-tabs>
     <div v-loading="state.loading" class="content-box">
       <template v-if="currentNewsList.length > 0">
@@ -30,6 +45,7 @@
 
 <script setup lang="ts" name="layoutBreadcrumbUserNews">
 import router from '@/router';
+import { ElMessageBox } from 'element-plus';
 import { useNoticeStore } from '@/store/modules/notice';
 import { useUserStore } from '@/store/modules/user';
 import { markMessageRead, markMessageReadBatch } from '@/utils/message-read';
@@ -42,7 +58,7 @@ const userStore = useUserStore();
 const state = reactive({
   loading: false
 });
-const activeTab = ref<string>(NOTICE_GROUP.SYSTEM);
+const activeTab = ref<string>(NOTICE_GROUP.WORKFLOW);
 const newsList = computed(() => noticeStore.state.notices);
 
 const tabCount = computed(() => ({
@@ -50,6 +66,10 @@ const tabCount = computed(() => ({
   notice: newsList.value.filter((item: any) => item.category === NOTICE_GROUP.NOTICE).length,
   workflow: newsList.value.filter((item: any) => item.category === NOTICE_GROUP.WORKFLOW).length
 }));
+
+const unreadWorkflowCount = computed(() =>
+  newsList.value.filter((item: any) => item.category === NOTICE_GROUP.WORKFLOW && !item.read).length
+);
 
 const currentNewsList = computed(() => {
   return newsList.value.filter((item: any) => {
@@ -85,6 +105,24 @@ const readAll = () => {
     .filter((item: string | number | undefined) => item !== undefined && item !== null);
   markMessageReadBatch(userStore.userId, ids);
   noticeStore.markReadBatch(ids);
+};
+
+/** 全部已读：加确认，防止误点把工作消息清掉 */
+const handleReadAll = async () => {
+  const unreadWorkflow = newsList.value.filter((item: any) => item.category === NOTICE_GROUP.WORKFLOW && !item.read);
+  const hint = unreadWorkflow.length > 0
+    ? `还有 ${unreadWorkflow.length} 条未读工作消息，标记后需逐条找回。确定全部已读？`
+    : '确定将所有消息标记为已读？';
+  try {
+    await ElMessageBox.confirm(hint, '全部已读确认', {
+      confirmButtonText: '全部已读',
+      cancelButtonText: '取消',
+      type: 'warning'
+    });
+    readAll();
+  } catch {
+    // 用户取消
+  }
 };
 </script>
 
@@ -142,6 +180,22 @@ const readAll = () => {
     :deep(.el-tabs__item.is-active) {
       color: var(--app-accent-strong);
       font-weight: 600;
+    }
+  }
+
+  // 工作 tab 未读红点
+  .workflow-tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+
+    .unread-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--el-color-danger);
+      display: inline-block;
     }
   }
 
