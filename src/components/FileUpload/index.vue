@@ -3,6 +3,7 @@
     <el-upload
       ref="fileUploadRef"
       multiple
+      :drag="drag"
       :action="uploadFileUrl"
       :before-upload="handleBeforeUpload"
       :data="uploadData"
@@ -17,8 +18,13 @@
       class="upload-file-uploader"
       v-if="!disabled"
     >
+      <!-- 拖拽模式 -->
+      <template v-if="drag">
+        <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+        <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
+      </template>
       <!-- 上传按钮 -->
-      <el-button type="primary">选取文件</el-button>
+      <el-button v-else type="primary">选取文件</el-button>
     </el-upload>
     <!-- 上传提示 -->
     <div v-if="showTip && !disabled" class="el-upload__tip">
@@ -49,6 +55,7 @@
 
 <script setup lang="ts">
 import { delOss, listByIds } from '@/api/system/oss';
+import { UploadFilled } from '@element-plus/icons-vue';
 import type { SysOssExt } from '@/api/system/oss/types';
 import modal from '@/plugins/modal';
 import { propTypes } from '@/utils/propTypes';
@@ -73,6 +80,11 @@ const props = defineProps({
   ossExt: {
     type: Object as PropType<SysOssExt>,
     default: undefined
+  },
+  // 是否启用拖拽上传（开启后变为拖拽区域样式）
+  drag: {
+    type: Boolean,
+    default: true
   }
 });
 

@@ -3,8 +3,9 @@
     <el-upload
       ref="imageUploadRef"
       multiple
+      :drag="drag"
       :action="uploadImgUrl"
-      list-type="picture-card"
+      :list-type="drag ? 'text' : 'picture-card'"
       :on-success="handleUploadSuccess"
       :before-upload="handleBeforeUpload"
       :data="uploadData"
@@ -17,9 +18,13 @@
       :headers="headers"
       :file-list="fileList"
       :on-preview="handlePictureCardPreview"
-      :class="{ hide: fileList.length >= limit }"
+      :class="{ hide: !drag && fileList.length >= limit }"
     >
-      <el-icon class="avatar-uploader-icon">
+      <template v-if="drag">
+        <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+        <div class="el-upload__text">将图片拖到此处，或<em>点击上传</em></div>
+      </template>
+      <el-icon v-else class="avatar-uploader-icon">
         <plus />
       </el-icon>
     </el-upload>
@@ -45,6 +50,7 @@
 
 <script setup lang="ts">
 import { compressAccurately } from 'image-conversion';
+import { UploadFilled } from '@element-plus/icons-vue';
 import { listByIds, delOss } from '@/api/system/oss';
 import type { OssVO, SysOssExt } from '@/api/system/oss/types';
 import modal from '@/plugins/modal';
@@ -78,6 +84,11 @@ const props = defineProps({
   ossExt: {
     type: Object as PropType<SysOssExt>,
     default: undefined
+  },
+  // 是否启用拖拽上传（开启后变为拖拽区域样式）
+  drag: {
+    type: Boolean,
+    default: true
   }
 });
 
