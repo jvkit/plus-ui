@@ -51,7 +51,7 @@
         </el-table-column>
         <el-table-column label="打包文件" align="center" width="100">
           <template #default="scope">
-            <el-link v-if="scope.row.fileUrl" type="primary" :underline="false" @click="openFile(scope.row.fileUrl)">查看</el-link>
+            <el-link v-if="scope.row.fileUrl" type="primary" :underline="false" @click="openFile(scope.row)">查看</el-link>
             <span v-else class="text-gray-400">-</span>
           </template>
         </el-table-column>
@@ -107,7 +107,7 @@
         </el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ proxy.parseTime(detail.data?.createTime) }}</el-descriptions-item>
         <el-descriptions-item label="打包文件">
-          <el-link v-if="detail.data?.fileUrl" type="primary" :underline="false" @click="openFile(detail.data?.fileUrl)">打开打包文件</el-link>
+          <el-link v-if="detail.data?.fileUrl" type="primary" :underline="false" @click="openFile(detail.data)">打开打包文件</el-link>
           <span v-else class="text-gray-400">-</span>
         </el-descriptions-item>
         <el-descriptions-item label="包含内容" :span="2">{{ contentText }}</el-descriptions-item>
@@ -297,10 +297,17 @@ const handleDetail = async (row: ReimbursementVO) => {
   detail.visible = true;
 };
 
-/** 打开附件/文件链接 */
-const openFile = (url?: string) => {
-  if (url) {
-    window.open(url, '_blank');
+/** 打开打包文件：fileUrl 存的是 ossId，调下载接口预览（仅查看，不触发资金状态推进） */
+const openFile = async (row: any) => {
+  if (!row?.id) return;
+  try {
+    const res: any = await downloadReimbursement(row.id);
+    const blob = new Blob([res], { type: 'application/zip' });
+    const objectUrl = URL.createObjectURL(blob);
+    window.open(objectUrl, '_blank');
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+  } catch {
+    proxy?.$modal.msgError('文件打开失败');
   }
 };
 

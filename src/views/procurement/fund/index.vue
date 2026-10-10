@@ -175,7 +175,7 @@
           </el-table>
 
           <!-- 对公资金流水明细 -->
-          <div class="section-title section-gap">对公资金流水</div>
+          <div class="section-title section-gap">项目资金流水（自购 + 对公）</div>
           <el-form :model="publicQuery" :inline="true">
             <el-form-item label="项目" prop="projectId">
               <el-tree-select
@@ -493,7 +493,7 @@ const publicQuery = reactive<FundFlowQuery>({
   pageSize: 10,
   projectId: undefined,
   flowType: undefined,
-  titleType: '对公',
+  titleType: undefined, // 项目视图显示全部流水（自购 + 对公），自购也在项目维度有记录
   flowNo: undefined
 });
 const publicLoading = ref(false);
