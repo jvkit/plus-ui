@@ -233,6 +233,10 @@
               </el-form-item>
             </el-col>
           </el-row>
+          <!-- 对公：公司名（导出申请表时写入 R 列） -->
+          <el-form-item label="公司名" prop="companyName">
+            <el-input v-model="form.companyName" placeholder="供应商公司名称（导出申请表时显示）" maxlength="200" />
+          </el-form-item>
         </template>
 
         <el-form-item label="备注" prop="remark">
@@ -503,6 +507,7 @@ const initFormData: RequestForm = {
   paymentScreenshot: '',
   quotationUrl: '',
   invoiceInfo: emptyInvoice(),
+  companyName: '',
   reservePeople: [],
   status: 'draft',
   remark: '',

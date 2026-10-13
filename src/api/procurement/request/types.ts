@@ -102,6 +102,7 @@ export interface RequestForm {
   paymentScreenshot: string;
   quotationUrl: string;
   invoiceInfo: InvoiceInfo;
+  companyName?: string; // 对公供应商公司名（导出申请表时写入 R 列）
   reservePeople?: ReservePerson[]; // 备用金人（前端组件态，顺序=扣款顺序；提交时序列化为 reservePeopleJson）
   useUserId?: number | string;
   useUserName?: string;
