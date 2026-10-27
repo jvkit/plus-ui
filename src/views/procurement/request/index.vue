@@ -823,7 +823,9 @@ const confirmItem = (keepOpen: boolean) => {
     form.value.items[editingItemIndex.value] = { ...itemForm.value };
   }
   if (keepOpen) {
+    // 「再添加一个」：表单与树选择器要一起重置，否则树仍显示上一条的分类、而 itemForm 已回默认值（100材料）
     itemForm.value = emptyItem();
+    categorySelected.value = itemForm.value.category2 || itemForm.value.category1 || '';
   } else {
     itemDialog.visible = false;
   }
